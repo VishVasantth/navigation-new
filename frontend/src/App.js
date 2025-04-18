@@ -207,7 +207,7 @@ function App() {
         */}
         
         {/* Show alternative paths if enabled */}
-        {showAllPaths && alternativePaths && alternativePaths.slice(0, 3).map((pathData, index) => (
+        {showAllPaths && alternativePaths && alternativePaths.slice(0, 2).map((pathData, index) => (
           index !== selectedPathIndex && (
             <Polyline 
               key={`path-${index}`}

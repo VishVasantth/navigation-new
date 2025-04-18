@@ -56,7 +56,7 @@ const RouteSelector = ({ routes, selectedPathIndex, selectPath, showAllPaths, to
 
   return (
     <div className="route-selector">
-      <h3>Available Routes ({routes.length})</h3>
+      <h3>Available Routes ({Math.min(routes.length, 2)})</h3>
       
       <div className="route-controls">
         <button 
@@ -73,7 +73,7 @@ const RouteSelector = ({ routes, selectedPathIndex, selectPath, showAllPaths, to
         </div>
       ) : (
         <div className="routes-list">
-          {routes.map((route, index) => (
+          {routes.slice(0, 2).map((route, index) => (
             <div 
               key={`route-${index}`} 
               className={`route-item ${selectedPathIndex === index ? 'selected' : ''}`}

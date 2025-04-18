@@ -337,17 +337,17 @@ const usePath = (obstacles = []) => {
         uniquePaths.push(currentPath);
       }
       
-      // Stop once we have 3 unique paths
-      if (uniquePaths.length >= 3) {
+      // Stop once we have 2 unique paths (changed from 3)
+      if (uniquePaths.length >= 2) {
         break;
       }
     }
     
-    // If we couldn't find 3 unique paths, add more paths even if somewhat similar
-    if (uniquePaths.length < 3 && simplifiedPaths.length >= 3) {
+    // If we couldn't find 2 unique paths, add more paths even if somewhat similar
+    if (uniquePaths.length < 2 && simplifiedPaths.length >= 2) {
       const additionalPaths = [];
       
-      for (let i = 0; i < simplifiedPaths.length && uniquePaths.length + additionalPaths.length < 3; i++) {
+      for (let i = 0; i < simplifiedPaths.length && uniquePaths.length + additionalPaths.length < 2; i++) {
         // Skip paths already in uniquePaths
         if (!uniquePaths.includes(simplifiedPaths[i])) {
           // Check if this path is significantly different from paths we've already decided to add
@@ -368,7 +368,7 @@ const usePath = (obstacles = []) => {
             }
           }
           
-          if (isUnique || additionalPaths.length + uniquePaths.length < 3) {
+          if (isUnique || additionalPaths.length + uniquePaths.length < 2) {
             additionalPaths.push(simplifiedPaths[i]);
           }
         }
@@ -378,8 +378,8 @@ const usePath = (obstacles = []) => {
       uniquePaths.push(...additionalPaths);
     }
     
-    // Ensure we never return more than 3 paths and they're unique
-    return ensureUniquePaths(uniquePaths).slice(0, 3);
+    // Ensure we never return more than 2 paths and they're unique (changed from 3)
+    return ensureUniquePaths(uniquePaths).slice(0, 2);
   };
   
   // A more detailed path similarity calculation that uses more sample points
