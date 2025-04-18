@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "OSM PostgreSQL Server": {
+      "command": "/Users/vishn/.local/bin/uv",
+      "args": [
+        "run",
+        "--env-file",
+        ".env",
+        "--with",
+        "mcp[cli]",
+        "--with",
+        "psycopg2",
+        "--with-editable",
+        "/Users/vishn/src/mcp-osm",
+        "--directory",
+        "/Users/vishn/src/mcp-osm",
+        "mcp",
+        "run",
+        "mcp.py"
+      ]
+    }
+  }
+}
