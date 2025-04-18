@@ -1,0 +1,1 @@
+// This query is for examining the file content 

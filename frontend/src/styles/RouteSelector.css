@@ -1,0 +1,170 @@
+.route-selector {
+  width: 100%;
+  margin-top: 20px;
+  background-color: rgba(255, 255, 255, 0.95);
+  border-radius: 8px;
+  padding: 18px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(0, 123, 255, 0.2);
+}
+
+.route-selector h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #0056b3;
+  font-size: 18px;
+  border-bottom: 2px solid #007bff;
+  padding-bottom: 10px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.route-controls {
+  margin-bottom: 15px;
+}
+
+.show-all-button {
+  background-color: #f8f8f8;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  width: 100%;
+  font-weight: 500;
+}
+
+.show-all-button:hover {
+  background-color: #eee;
+}
+
+.show-all-button.active {
+  background-color: #007bff;
+  color: white;
+  border-color: #0066cc;
+}
+
+.routes-list {
+  max-height: 250px;
+  overflow-y: auto;
+  border-top: 1px solid #eee;
+  border-radius: 4px;
+}
+
+.route-item {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.route-item:hover {
+  background-color: #f5f5f5;
+}
+
+.route-item.selected {
+  background-color: #e6f3ff;
+  border-left: 4px solid #007bff;
+}
+
+.route-color {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  margin-right: 12px;
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.1);
+}
+
+.selected .route-color {
+  width: 16px;
+  height: 16px;
+  box-shadow: 0 0 0 2px rgba(0,123,255,0.5);
+}
+
+.route-details {
+  flex: 1;
+}
+
+.route-name {
+  font-weight: 600;
+  margin-bottom: 4px;
+  font-size: 14px;
+  color: #333;
+}
+
+.selected-indicator {
+  color: #007bff;
+  font-weight: 700;
+}
+
+.route-stats {
+  display: flex;
+  font-size: 12px;
+  color: #666;
+}
+
+.route-distance {
+  margin-right: 15px;
+  position: relative;
+}
+
+.route-distance:after {
+  content: '•';
+  position: absolute;
+  right: -10px;
+  color: #aaa;
+}
+
+.route-direct-badge {
+  display: inline-block;
+  background-color: #ff9800;
+  color: white;
+  font-size: 10px;
+  padding: 2px 5px;
+  border-radius: 3px;
+  margin-top: 5px;
+}
+
+.select-route-button {
+  background-color: transparent;
+  border: 1px solid #007bff;
+  color: #007bff;
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s ease;
+  margin-left: 8px;
+  opacity: 0;
+  transform: translateX(10px);
+}
+
+.route-item:hover .select-route-button {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.select-route-button:hover {
+  background-color: #007bff;
+  color: white;
+}
+
+.no-alternatives-message {
+  padding: 15px;
+  text-align: center;
+  color: #666;
+  font-size: 14px;
+  border-top: 1px solid #eee;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+}
+
+.no-alternatives-message p {
+  margin: 0;
+  padding: 0;
+} 
