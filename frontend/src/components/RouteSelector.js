@@ -56,16 +56,16 @@ const RouteSelector = ({ routes, selectedPathIndex, selectPath, showAllPaths, to
 
   return (
     <div className="route-selector">
-      <h3>Available Routes ({Math.min(routes.length, 2)})</h3>
+      {/* <h3>Available Routes</h3> */}
       
-      <div className="route-controls">
+      {/* <div className="route-controls">
         <button 
           className={`show-all-button ${showAllPaths ? 'active' : ''}`}
           onClick={toggleShowAllPaths}
         >
           {showAllPaths ? 'Hide Alternative Routes' : 'Show All Routes'}
         </button>
-      </div>
+      </div> */}
       
       {routes.length <= 1 ? (
         <div className="no-alternatives-message">
@@ -83,7 +83,7 @@ const RouteSelector = ({ routes, selectedPathIndex, selectPath, showAllPaths, to
               <div className="route-details">
                 <div className="route-name">
                   {getRouteName(route, index)}
-                  {selectedPathIndex === index && <span className="selected-indicator"> (Selected)</span>}
+                  {/* {selectedPathIndex === index && <span className="selected-indicator"> (Selected)</span>} */}
                 </div>
                 <div className="route-stats">
                   <span className="route-distance">{formatDistance(route.distance)}</span>
@@ -93,7 +93,7 @@ const RouteSelector = ({ routes, selectedPathIndex, selectPath, showAllPaths, to
                   <div className="route-direct-badge">Direct Path</div>
                 )}
               </div>
-              {selectedPathIndex !== index && (
+              {/* {selectedPathIndex !== index && (
                 <button 
                   className="select-route-button"
                   onClick={(e) => {
@@ -103,7 +103,7 @@ const RouteSelector = ({ routes, selectedPathIndex, selectPath, showAllPaths, to
                 >
                   Select
                 </button>
-              )}
+              )} */}
             </div>
           ))}
         </div>

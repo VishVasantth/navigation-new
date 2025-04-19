@@ -16,7 +16,7 @@
 .controls {
   position: absolute;
   top: 10px;
-  left: 10px;
+  left: 5px;
   z-index: 1000;
   background: white;
   padding: 15px;
@@ -65,12 +65,14 @@
 
 .buttons {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  flex-direction: column;
+  gap: 11px;
+  /* width: 100%; */
 }
 
 .buttons button {
-  flex: 1;
+  /* font-weight: 400; */
+  font-size: 14px;
   min-width: 120px;
   padding: 8px 12px;
   border: none;
@@ -79,6 +81,21 @@
   color: white;
   cursor: pointer;
   transition: background-color 0.2s;
+  width: 100%;
+}
+
+.full-width-button {
+  width: 100%;
+}
+
+.button-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.half-width-button {
+  flex: 1;
 }
 
 .buttons button:hover {
@@ -359,7 +376,7 @@
 .leaflet-control-zoom-out {
   display: block !important;
   background-color: white !important;
-  border: 1px solid #ccc !important;
+  /* border: 1px solid #ccc !important; */
   border-radius: 4px !important;
   width: 30px !important;
   height: 30px !important;
@@ -392,4 +409,4 @@
 
 .alternative-path-4 {
   stroke: #00B294; /* Teal */
-} 
+}

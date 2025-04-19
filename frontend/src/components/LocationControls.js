@@ -53,20 +53,6 @@ const LocationControls = ({
             </option>
           ))}
         </select>
-        <div className="coordinates">
-          <input 
-            type="text" 
-            placeholder="Latitude" 
-            value={startLat} 
-            onChange={(e) => setStartLat(e.target.value)} 
-          />
-          <input 
-            type="text" 
-            placeholder="Longitude" 
-            value={startLon} 
-            onChange={(e) => setStartLon(e.target.value)} 
-          />
-        </div>
       </div>
       
       <div className="input-group">
@@ -81,20 +67,6 @@ const LocationControls = ({
             </option>
           ))}
         </select>
-        <div className="coordinates">
-          <input 
-            type="text" 
-            placeholder="Latitude" 
-            value={endLat} 
-            onChange={(e) => setEndLat(e.target.value)} 
-          />
-          <input 
-            type="text" 
-            placeholder="Longitude" 
-            value={endLon} 
-            onChange={(e) => setEndLon(e.target.value)} 
-          />
-        </div>
       </div>
     </>
   );

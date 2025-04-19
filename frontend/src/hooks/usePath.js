@@ -540,34 +540,32 @@ const usePath = (obstacles = []) => {
     return Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
   };
   
-  // Function to update the closest points on the path to the markers
+  // Function to update the closest points on the path to the start and end
   const updateClosestPoints = useCallback(() => {
-    if (!path || path.length < 2 || !startMarker || !endMarker) {
+    if (!path || path.length === 0 || !startMarker || !endMarker) {
       setStartPathPoint(null);
       setEndPathPoint(null);
       return;
     }
-    
-    const startPos = [startMarker.position.lat, startMarker.position.lng];
-    const endPos = [endMarker.position.lat, endMarker.position.lng];
-    
-    const closestStartResult = findClosestPointOnPathWithIndex(startPos, path);
-    const closestEndResult = findClosestPointOnPathWithIndex(endPos, path);
-    
-    if (closestStartResult) {
-      setStartPathPoint({
-        point: closestStartResult.point,
-        segmentIndex: closestStartResult.segmentIndex,
-        distanceToPoint: closestStartResult.distanceToPoint
-      });
+
+    // Find the closest point on the path to the start marker
+    const startClosestInfo = findClosestPointOnPathWithIndex(
+      [startMarker.position.lat, startMarker.position.lng],
+      path
+    );
+
+    // Find the closest point on the path to the end marker
+    const endClosestInfo = findClosestPointOnPathWithIndex(
+      [endMarker.position.lat, endMarker.position.lng],
+      path
+    );
+
+    if (startClosestInfo && startClosestInfo.point) {
+      setStartPathPoint(startClosestInfo.point);
     }
-    
-    if (closestEndResult) {
-      setEndPathPoint({
-        point: closestEndResult.point,
-        segmentIndex: closestEndResult.segmentIndex,
-        distanceToPoint: closestEndResult.distanceToPoint
-      });
+
+    if (endClosestInfo && endClosestInfo.point) {
+      setEndPathPoint(endClosestInfo.point);
     }
   }, [path, startMarker, endMarker]);
   

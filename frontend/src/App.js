@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Polyline, ZoomControl, Circle } from 'react-leaflet';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { MapContainer, TileLayer, Marker, Polyline, ZoomControl, Circle, useMap, Tooltip } from 'react-leaflet';
+import L from 'leaflet';
 import './App.css';
 import 'leaflet/dist/leaflet.css';
 
@@ -18,7 +19,119 @@ import useDetection from './hooks/useDetection';
 
 // Utils
 import { createStartIcon, createEndIcon, createWaypointIcon } from './utils/mapUtils';
-import { DEFAULT_CENTER, MAP_BOUNDS, DEFAULT_OBSTACLE_SIZE_METERS, AMRITA_LOCATIONS, PATH_COLORS } from './config/constants';
+import { DEFAULT_CENTER, DEFAULT_OBSTACLE_SIZE_METERS, AMRITA_LOCATIONS, PATH_COLORS } from './config/constants';
+import { findClosestPointOnPathWithIndex } from './utils/pathUtils';
+
+// Helper function to format distance display
+const formatDistance = (meters) => {
+  if (meters < 1000) {
+    return `${Math.round(meters)} m`;
+  } else {
+    return `${(meters / 1000).toFixed(2)} km`;
+  }
+};
+
+// Helper function to format time display
+const formatTime = (minutes) => {
+  if (minutes < 1) {
+    return `${Math.round(minutes * 60)} sec`;
+  } else if (minutes < 60) {
+    return `${Math.round(minutes)} min`;
+  } else {
+    const hours = Math.floor(minutes / 60);
+    const mins = Math.round(minutes % 60);
+    return `${hours} hr ${mins} min`;
+  }
+};
+
+// Helper component to control the map programmatically
+function MapController({ path, alternativePaths, showAllPaths, selectedPathIndex, startMarker, endMarker, obstacles }) {
+  const map = useMap();
+  
+  // Function to fit the map to the current route and markers
+  const fitMapToRoute = useCallback(() => {
+    if (!path || path.length === 0 || !startMarker || !endMarker) return;
+    
+    try {
+      // Initialize bounds with the main path
+      const latLngs = path.map(point => [point[0], point[1]]);
+      let bounds = L.latLngBounds(latLngs);
+      
+      // Include alternative paths in the bounds if they're visible
+      if (showAllPaths && alternativePaths && alternativePaths.length > 0) {
+        alternativePaths.forEach(altPath => {
+          if (altPath && altPath.length > 0) {
+            const altLatLngs = altPath.map(point => [point[0], point[1]]);
+            altLatLngs.forEach(point => bounds.extend(point));
+          }
+        });
+      }
+      
+      // Add start and end markers to bounds
+      bounds.extend([startMarker.position.lat, startMarker.position.lng]);
+      bounds.extend([endMarker.position.lat, endMarker.position.lng]);
+      
+      // Include obstacles in the bounds if they're close to the path
+      if (obstacles && obstacles.length > 0) {
+        obstacles.forEach(obstacle => {
+          // Only include obstacles that are near the path (within ~50m of bounds)
+          if (obstacle.position && 
+              Math.abs(obstacle.position[0] - bounds.getCenter().lat) < 0.0005 && 
+              Math.abs(obstacle.position[1] - bounds.getCenter().lng) < 0.0005) {
+            bounds.extend(obstacle.position);
+          }
+        });
+      }
+      
+      // Calculate padding based on the size of the bounds
+      // Larger area = more padding for context
+      const boundsSize = bounds.getNorthEast().distanceTo(bounds.getSouthWest());
+      const dynamicPadding = Math.min(100, Math.max(50, boundsSize / 20));
+      
+      // Add some padding around the bounds for better context
+      map.fitBounds(bounds, {
+        padding: [dynamicPadding, dynamicPadding],
+        maxZoom: 18,
+        animate: true,
+        duration: 0.8
+      });
+      
+      console.log("Map zoomed to fit route and markers");
+    } catch (error) {
+      console.error("Error while fitting bounds:", error);
+      
+      // Fallback to a simpler approach if there's an error
+      try {
+        // Center on the midpoint between start and end markers
+        const center = L.latLng(
+          (startMarker.position.lat + endMarker.position.lat) / 2,
+          (startMarker.position.lng + endMarker.position.lng) / 2
+        );
+        
+        // Set a reasonable zoom level
+        map.setView(center, 16, { animate: true });
+        console.log("Used fallback centering method");
+      } catch (fallbackError) {
+        console.error("Fallback centering also failed:", fallbackError);
+      }
+    }
+  }, [map, path, alternativePaths, showAllPaths, obstacles, startMarker, endMarker]);
+  
+  // Effect to handle zooming when a path is found or changed
+  useEffect(() => {
+    fitMapToRoute();
+  }, [fitMapToRoute, path, selectedPathIndex]);
+  
+  // Effect to handle route selection changes
+  useEffect(() => {
+    // When the selected path index changes, we need to refit the map
+    if (path && path.length > 0) {
+      fitMapToRoute();
+    }
+  }, [fitMapToRoute, selectedPathIndex]);
+  
+  return null;
+}
 
 function App() {
   // State for location selection
@@ -39,6 +152,13 @@ function App() {
   const [obstacles, setObstacles] = useState([]);
   const [placingObstacle, setPlacingObstacle] = useState(false);
   
+  // State for route selector visibility
+  const [showRouteSelector, setShowRouteSelector] = useState(false);
+  
+  // State for closest points to markers (for dotted lines)
+  const [startRoadConnection, setStartRoadConnection] = useState(null);
+  const [endRoadConnection, setEndRoadConnection] = useState(null);
+  
   // Use custom hooks
   const { 
     path,
@@ -52,7 +172,9 @@ function App() {
     findPath,
     updateClosestPoints,
     selectPath,
-    toggleShowAllPaths
+    toggleShowAllPaths,
+    startPathPoint,
+    endPathPoint
   } = usePath(obstacles);
   
   const { detectionRunning, objects, videoRef, startDetection, stopDetection } = useDetection(setObstacles);
@@ -69,6 +191,28 @@ function App() {
   const clearObstacles = () => {
     setObstacles([]);
   };
+  
+  // Update road connections for the dotted lines when markers or path change
+  useEffect(() => {
+    if (path && path.length > 0 && startMarker && endMarker) {
+      // For start marker
+      const startPoint = [startMarker.position.lat, startMarker.position.lng];
+      const startClosestInfo = findClosestPointOnPathWithIndex(startPoint, path);
+      if (startClosestInfo && startClosestInfo.point) {
+        setStartRoadConnection(startClosestInfo.point);
+      }
+      
+      // For end marker
+      const endPoint = [endMarker.position.lat, endMarker.position.lng];
+      const endClosestInfo = findClosestPointOnPathWithIndex(endPoint, path);
+      if (endClosestInfo && endClosestInfo.point) {
+        setEndRoadConnection(endClosestInfo.point);
+      }
+    } else {
+      setStartRoadConnection(null);
+      setEndRoadConnection(null);
+    }
+  }, [path, startMarker, endMarker]);
   
   // Update closest points whenever path or markers change
   useEffect(() => {
@@ -138,42 +282,43 @@ function App() {
           clearObstacles={clearObstacles}
         />
         
-        {/* Always show the route selector once a path is found */}
+        {/* Route selector button and collapsible panel */}
         {path && path.length > 0 && (
-          <RouteSelector
-            routes={routes}
-            selectedPathIndex={selectedPathIndex}
-            selectPath={selectPath}
-            showAllPaths={showAllPaths}
-            toggleShowAllPaths={toggleShowAllPaths}
-          />
+          <div className="route-selector-container">
+            <button 
+              className={`route-selector-toggle ${showRouteSelector ? 'active' : ''}`}
+              onClick={() => setShowRouteSelector(!showRouteSelector)}
+            >
+              {showRouteSelector ? 'Hide Route Options' : 'Show Route Options'} 
+              {/* {routes.length > 1 && !showRouteSelector && <span className="routes-available-badge">{Math.min(routes.length, 2)}</span>} */}
+            </button>
+            
+            {showRouteSelector && (
+              <RouteSelector
+                routes={routes}
+                selectedPathIndex={selectedPathIndex}
+                selectPath={selectPath}
+                showAllPaths={showAllPaths}
+                toggleShowAllPaths={toggleShowAllPaths}
+              />
+            )}
+          </div>
         )}
       </div>
       
       <MapContainer 
         center={DEFAULT_CENTER} 
-        zoom={17} 
-        maxZoom={19}
-        minZoom={15}
+        zoom={16}  // Adjusted initial zoom level
+        maxZoom={18}
         zoomControl={false}
-        maxBounds={MAP_BOUNDS}
-        maxBoundsViscosity={1.0}
         scrollWheelZoom={true}
         doubleClickZoom={true}
         attributionControl={true}
-        whenCreated={(map) => {
-          // Add event listeners to ensure map stays within bounds
-          map.on('drag', () => {
-            map.panInsideBounds(MAP_BOUNDS, { animate: false });
-          });
-          
-          // Force map to respect zoom limits
-          map.on('zoomend', () => {
-            if (map.getZoom() > 19) map.setZoom(19);
-            if (map.getZoom() < 15) map.setZoom(15);
-          });
-        }}
         style={{ height: '100vh', width: '100vw' }}
+        whenCreated={(mapInstance) => {
+          // Make map instance available in the global scope for debugging if needed
+          window.mapInstance = mapInstance;
+        }}
       >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -183,51 +328,122 @@ function App() {
         {/* Add zoom control on the right side */}
         <ZoomControl position="topright" />
         
-        {/* Show primary path line */}
-        {path && path.length > 0 && (
-          <Polyline 
-            positions={path} 
-            color={PATH_COLORS[selectedPathIndex % PATH_COLORS.length]}
-            weight={5} 
-            opacity={1.0}
-          />
-        )}
+        {/* Map controller to handle zoom on path change */}
+        <MapController 
+          path={path} 
+          alternativePaths={alternativePaths}
+          showAllPaths={showAllPaths}
+          selectedPathIndex={selectedPathIndex}
+          startMarker={startMarker} 
+          endMarker={endMarker} 
+          obstacles={obstacles}
+        />
         
-        {/* Connect waypoints with straight lines to form a proper path graph */}
-        {/* Removing the dotted blue line as requested
-        {waypoints && waypoints.length > 1 && (
-          <Polyline
-            positions={waypoints.map(wp => [wp.position.lat, wp.position.lng])}
-            color="#0000FF"
-            weight={4}
-            opacity={0.8}
-            dashArray="8, 8"
-          />
-        )}
-        */}
-        
-        {/* Show alternative paths if enabled */}
+        {/* First render all non-selected paths with lower z-index */}
         {showAllPaths && alternativePaths && alternativePaths.slice(0, 2).map((pathData, index) => (
-          index !== selectedPathIndex && (
-            <Polyline 
-              key={`path-${index}`}
-              positions={pathData} 
-              color={PATH_COLORS[index % PATH_COLORS.length]}
-              weight={3} 
-              opacity={0.7}
-              dashArray="5, 5"
-              eventHandlers={{
-                click: () => selectPath(index)
-              }}
-            />
+          index !== selectedPathIndex && pathData && pathData.length > 0 && (
+            <React.Fragment key={`alt-path-${index}`}>
+              {/* White outer stroke for border effect */}
+              <Polyline 
+                positions={pathData} 
+                color="white"
+                weight={8} 
+                opacity={0.7}
+                zIndex={5}
+              />
+              {/* Inner colored path */}
+              <Polyline 
+                positions={pathData} 
+                color="#999999"  /* Gray color for deselected paths */
+                weight={6} 
+                opacity={0.8}
+                zIndex={10}  /* Lower zIndex to place behind selected path */
+                eventHandlers={{
+                  click: () => selectPath(index)
+                }}
+              >
+                {routes[index] && (
+                  <Tooltip sticky className="route-tooltip">
+                    <div>
+                      <strong>{index === 0 ? "Fastest Route" : "Alternative Route"}</strong>
+                      <div>Distance: {formatDistance(routes[index].distance)}</div>
+                      <div>Time: {formatTime(routes[index].time)}</div>
+                      {/* <div className="tooltip-hint">Click to select this route</div> */}
+                    </div>
+                  </Tooltip>
+                )}
+              </Polyline>
+            </React.Fragment>
           )
         ))}
+        
+        {/* Always render the selected path last so it's on top */}
+        {path && path.length > 0 && (
+          <React.Fragment key={`selected-path-${selectedPathIndex}`}>
+            {/* White outer stroke for border effect */}
+            <Polyline 
+              positions={path} 
+              color="white"
+              weight={12}  /* Increased from 10 to 12 */
+              opacity={0.9}
+              zIndex={50}  /* Increased to ensure it's always above alternatives */
+            />
+            {/* Inner colored path */}
+            <Polyline 
+              positions={path} 
+              color="#0078FF"  /* Blue color for selected path */
+              weight={8} 
+              opacity={1.0}
+              zIndex={55}  /* Increased to ensure it's always above alternatives */
+            >
+              {routes[selectedPathIndex] && (
+                <Tooltip sticky className="route-tooltip">
+                  <div>
+                    <strong>Selected Route</strong>
+                    <div>Distance: {formatDistance(routes[selectedPathIndex].distance)}</div>
+                    <div>Time: {formatTime(routes[selectedPathIndex].time)}</div>
+                  </div>
+                </Tooltip>
+              )}
+            </Polyline>
+          </React.Fragment>
+        )}
+        
+        {/* Dotted lines from marker to nearest road point */}
+        {startMarker && startRoadConnection && (
+          <Polyline
+            positions={[
+              [startMarker.position.lat, startMarker.position.lng],
+              startRoadConnection
+            ]}
+            color="#0078D7"
+            weight={3}
+            opacity={0.7}
+            dashArray="5, 8"
+            zIndex={25}
+          />
+        )}
+        
+        {endMarker && endRoadConnection && (
+          <Polyline
+            positions={[
+              [endMarker.position.lat, endMarker.position.lng],
+              endRoadConnection
+            ]}
+            color="#D83B01"
+            weight={3}
+            opacity={0.7}
+            dashArray="5, 8"
+            zIndex={25}
+          />
+        )}
         
         {/* Start and end markers */}
         {startMarker && (
           <Marker 
             position={startMarker.position} 
             icon={createStartIcon(startMarker.label)}
+            zIndex={30}
           />
         )}
         
@@ -235,6 +451,7 @@ function App() {
           <Marker 
             position={endMarker.position} 
             icon={createEndIcon(endMarker.label)}
+            zIndex={30}
           />
         )}
         

@@ -1,88 +1,149 @@
-.route-selector {
+/* Route selector container and button styles */
+.route-selector-container {
+  margin-top: 10px;
   width: 100%;
-  margin-top: 20px;
-  background-color: rgba(255, 255, 255, 0.95);
-  border-radius: 8px;
-  padding: 18px;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
-  border: 1px solid rgba(0, 123, 255, 0.2);
+}
+
+.route-selector-toggle {
+  width: 100%;
+  /* padding: 12px 15px; */
+  background-color: #0078D7;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 400;
+  font-size: 14px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  margin-bottom: 0;
+}
+
+.route-selector-toggle:hover {
+  background-color: #0063B1;
+}
+
+.route-selector-toggle.active {
+  background-color: #0078D7;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  margin-bottom: 0;
+}
+
+.route-selector-toggle.active:hover{
+  background-color: #0063B1;
+}
+
+.routes-available-badge {
+  position: absolute;
+  right: 10px;
+  background-color: white;
+  color: #007bff;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Adjust existing route selector styles for the collapsible version */
+.route-selector {
+  /* width: 100%; */
+  margin-top: 0;
+  background-color: #ffffff;
+  border-radius: 0 0 4px 4px;
+  padding: 0;
+  /* box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); */
+  /* border: 1px solid #e0e0e0; */
+  border-top: none;
 }
 
 .route-selector h3 {
-  margin-top: 0;
-  margin-bottom: 15px;
+  margin: 0;
+  padding: 12px 15px;
   color: #0056b3;
-  font-size: 18px;
-  border-bottom: 2px solid #007bff;
-  padding-bottom: 10px;
-  text-align: center;
+  font-size: 16px;
+  border-bottom: 1px solid #e0e0e0;
+  text-align: left;
   font-weight: 600;
 }
 
 .route-controls {
-  margin-bottom: 15px;
+  padding: 0;
 }
 
 .show-all-button {
-  background-color: #f8f8f8;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 8px 12px;
+  width: 100%;
+  padding: 12px;
+  margin: 0;
+  background-color: #007bff;
+  border: none;
+  border-radius: 0;
+  color: white;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-size: 14px;
-  width: 100%;
   font-weight: 500;
+  font-size: 15px;
 }
 
 .show-all-button:hover {
-  background-color: #eee;
+  background-color: #0069d9;
 }
 
 .show-all-button.active {
-  background-color: #007bff;
+  background-color: #0056b3;
   color: white;
-  border-color: #0066cc;
+  border: none;
 }
 
 .routes-list {
-  max-height: 250px;
-  overflow-y: auto;
-  border-top: 1px solid #eee;
-  border-radius: 4px;
+  max-height: none;
+  border-top: none;
 }
 
 .route-item {
   display: flex;
   align-items: center;
-  padding: 12px;
-  border-bottom: 1px solid #eee;
+  padding: 12px 15px;
+  border-bottom: 1px solid #f0f0f0;
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
 }
 
+.route-item:last-child {
+  border-bottom: none;
+}
+
 .route-item:hover {
-  background-color: #f5f5f5;
+  background-color: #f8f9fa;
 }
 
 .route-item.selected {
-  background-color: #e6f3ff;
+  background-color: #e6f2ff;
   border-left: 4px solid #007bff;
 }
 
 .route-color {
-  width: 14px;
-  height: 14px;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
   border-radius: 50%;
-  margin-right: 12px;
+  margin-right: 15px;
   border: 2px solid white;
   box-shadow: 0 0 0 1px rgba(0,0,0,0.1);
 }
 
 .selected .route-color {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   box-shadow: 0 0 0 2px rgba(0,123,255,0.5);
 }
 
@@ -92,19 +153,19 @@
 
 .route-name {
   font-weight: 600;
-  margin-bottom: 4px;
-  font-size: 14px;
+  margin-bottom: 5px;
+  font-size: 15px;
   color: #333;
 }
 
 .selected-indicator {
   color: #007bff;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .route-stats {
   display: flex;
-  font-size: 12px;
+  font-size: 13px;
   color: #666;
 }
 
@@ -116,18 +177,8 @@
 .route-distance:after {
   content: '•';
   position: absolute;
-  right: -10px;
+  right: -9px;
   color: #aaa;
-}
-
-.route-direct-badge {
-  display: inline-block;
-  background-color: #ff9800;
-  color: white;
-  font-size: 10px;
-  padding: 2px 5px;
-  border-radius: 3px;
-  margin-top: 5px;
 }
 
 .select-route-button {
@@ -140,8 +191,6 @@
   font-size: 12px;
   transition: all 0.2s ease;
   margin-left: 8px;
-  opacity: 0;
-  transform: translateX(10px);
 }
 
 .route-item:hover .select-route-button {
@@ -159,12 +208,6 @@
   text-align: center;
   color: #666;
   font-size: 14px;
-  border-top: 1px solid #eee;
-  background-color: #f9f9f9;
-  border-radius: 4px;
-}
-
-.no-alternatives-message p {
-  margin: 0;
-  padding: 0;
+  background-color: #fafafa;
+  border-radius: 0 0 4px 4px;
 } 

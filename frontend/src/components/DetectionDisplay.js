@@ -1,6 +1,11 @@
 import React from 'react';
 
-const DetectionDisplay = ({ videoRef, objects, obstacles, clearObstacles }) => {
+const DetectionDisplay = ({ videoRef, detectionRunning, objects, obstacles, clearObstacles }) => {
+  // Don't render anything if detection is not running
+  if (!detectionRunning) {
+    return null;
+  }
+  
   return (
     <>
       {/* Video feed */}
