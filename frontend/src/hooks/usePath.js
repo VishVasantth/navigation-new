@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { 
-  fetchGraphHopperRoute, 
-  fetchGraphHopperFallbackRoute, 
+  fetchOpenRouteServiceRoute,
+  fetchOpenRouteServiceFallbackRoute,
   createDirectPath 
 } from '../api/routingService';
 import { findClosestPointOnPathWithIndex } from '../utils/pathUtils';
@@ -128,10 +128,10 @@ const usePath = (obstacles = []) => {
   // Function to fall back to a direct path between points
   const fallbackToDirectPath = useCallback(async (start, end) => {
     try {
-      console.log("Attempting to create a path using GraphHopper fallback method");
+      console.log("Attempting to create a path using OpenRouteService fallback method");
       
-      // Try simplified GraphHopper route first
-      const data = await fetchGraphHopperFallbackRoute(start, end);
+      // Try simplified OpenRouteService route first
+      const data = await fetchOpenRouteServiceFallbackRoute(start, end);
       
       if (data.paths && data.paths.length > 0) {
         const path = data.paths[0];
@@ -163,7 +163,7 @@ const usePath = (obstacles = []) => {
       console.error("Fallback routing failed, creating a truly direct path:", error);
     }
     
-    // If GraphHopper fails completely, create a simple direct path
+    // If OpenRouteService fails completely, create a simple direct path
     try {
       const directPathResult = createDirectPath(start, end);
       const directPath = directPathResult.path;
@@ -192,7 +192,7 @@ const usePath = (obstacles = []) => {
     }
   }, [updateWaypoints]);
   
-  // Function to find path between two points using GraphHopper
+  // Function to find path between two points
   const findPath = useCallback(async (start, end) => {
     try {
       setRerouting(true);
@@ -217,8 +217,8 @@ const usePath = (obstacles = []) => {
       setStartMarker({ position: startMarkerPos, label: 'A' });
       setEndMarker({ position: endMarkerPos, label: 'B' });
       
-      // Fetch route from GraphHopper
-      const data = await fetchGraphHopperRoute(start, end);
+      // Fetch route from OpenRouteService
+      const data = await fetchOpenRouteServiceRoute(start, end);
       
       // Process the path - just take the first one by default
       if (data.paths && data.paths.length > 0) {
@@ -256,26 +256,22 @@ const usePath = (obstacles = []) => {
           }
         }
         
-        // Set the primary path (first one)
-        setPath(uniquePaths[0].coordinates);
-        setRoute(uniquePaths[0].routeData);
-        
-        // Store all alternative paths
-        setAlternativePaths(uniquePaths.map(p => p.coordinates));
-        setRoutes(uniquePaths.map(p => p.routeData));
-        setSelectedPathIndex(0);
-        
-        // Set showAllPaths to true to ensure all paths are visible
-        setShowAllPaths(true);
-        
-        // Add waypoints for the primary path and include intersection nodes
+        // Prepare all the data first before any state updates
         const primaryPath = uniquePaths[0].coordinates;
-        updateWaypoints(primaryPath, intersections.map(intersection => ({
-          position: { lat: intersection.position[0], lng: intersection.position[1] },
-          isIntersection: true
-        })));
+        const allPathCoordinates = uniquePaths.map(p => p.coordinates);
+        const allRouteData = uniquePaths.map(p => p.routeData);
+        const waypointsData = buildWaypoints(primaryPath, intersections);
         
-        console.log(`Found ${uniquePaths.length} alternative paths`);
+        // Single batch update for all state to prevent multiple renders and animations
+        setPath(primaryPath);
+        setRoute(uniquePaths[0].routeData);
+        setAlternativePaths(allPathCoordinates);
+        setRoutes(allRouteData);
+        setSelectedPathIndex(0);
+        setShowAllPaths(true);
+        setWaypoints(waypointsData);
+        
+        console.log(`Finalized ${uniquePaths.length} alternative paths`);
       } else {
         console.error("No valid paths returned from API");
         throw new Error("No valid paths returned");
@@ -289,8 +285,112 @@ const usePath = (obstacles = []) => {
     } finally {
       setRerouting(false);
     }
-  }, [fallbackToDirectPath, updateWaypoints]);
+  }, [fallbackToDirectPath]);
   
+  // Helper function to build waypoints from path and intersections
+  const buildWaypoints = useCallback((pathCoordinates, intersections = []) => {
+    if (!pathCoordinates || pathCoordinates.length < 2) return [];
+    
+    const waypoints = [];
+    
+    // Add start point as first waypoint/node
+    waypoints.push({
+      position: { lat: pathCoordinates[0][0], lng: pathCoordinates[0][1] },
+      label: 'S',
+      name: 'Start Point',
+      isNode: true
+    });
+    
+    // Find points where there's a significant direction change (road turns/separations)
+    const directionChangeThreshold = 20; // degrees
+    
+    for (let i = 1; i < pathCoordinates.length - 1; i++) {
+      const prev = pathCoordinates[i-1];
+      const current = pathCoordinates[i];
+      const next = pathCoordinates[i+1];
+      
+      // Calculate vectors
+      const vec1 = [current[0] - prev[0], current[1] - prev[1]];
+      const vec2 = [next[0] - current[0], next[1] - current[1]];
+      
+      // Calculate magnitudes
+      const mag1 = Math.sqrt(vec1[0]*vec1[0] + vec1[1]*vec1[1]);
+      const mag2 = Math.sqrt(vec2[0]*vec2[0] + vec2[1]*vec2[1]);
+      
+      // Skip if any segment is too short (avoid division by zero)
+      if (mag1 < 0.00001 || mag2 < 0.00001) continue;
+      
+      // Calculate dot product and angle
+      const dotProduct = vec1[0]*vec2[0] + vec1[1]*vec2[1];
+      const angle = Math.acos(Math.min(1, Math.max(-1, dotProduct / (mag1 * mag2)))) * (180 / Math.PI);
+      
+      // If there's a significant direction change or the distance from the last waypoint is substantial
+      if (angle > directionChangeThreshold || (waypoints.length > 0 && 
+          i > 10 + waypoints[waypoints.length-1].index)) {
+        
+        waypoints.push({
+          position: { lat: current[0], lng: current[1] },
+          label: `${waypoints.length}`,
+          name: `Node ${waypoints.length}`,
+          isNode: true,
+          index: i
+        });
+      }
+    }
+    
+    // Add end point as last waypoint/node
+    waypoints.push({
+      position: { lat: pathCoordinates[pathCoordinates.length-1][0], lng: pathCoordinates[pathCoordinates.length-1][1] },
+      label: 'E',
+      name: 'End Point',
+      isNode: true,
+      index: pathCoordinates.length-1
+    });
+    
+    // Add intersection nodes to waypoints
+    if (intersections && intersections.length > 0) {
+      // Find the closest segment on the path for each intersection
+      intersections.forEach((intersection, idx) => {
+        const { findClosestPointOnPathWithIndex } = require('../utils/pathUtils');
+        const closestInfo = findClosestPointOnPathWithIndex(
+          [intersection.position.lat, intersection.position.lng],
+          pathCoordinates
+        );
+        
+        // Only add if the intersection is close enough to the path
+        if (closestInfo.distance < 0.0001) { // Approximately 10 meters
+          waypoints.push({
+            position: intersection.position, 
+            label: `I${idx+1}`,
+            name: `Intersection ${idx+1}`,
+            isIntersection: true,
+            segmentIndex: closestInfo.segmentIndex,
+            index: closestInfo.segmentIndex
+          });
+        }
+      });
+    }
+    
+    // Sort waypoints by their index on the path for proper sequence
+    waypoints.sort((a, b) => {
+      if (!a.index && !b.index) return 0;
+      if (!a.index) return 1;
+      if (!b.index) return -1;
+      return a.index - b.index;
+    });
+    
+    // Re-label sequential nodes for clarity
+    waypoints.forEach((waypoint, idx) => {
+      if (!waypoint.isIntersection && waypoint.label !== 'S' && waypoint.label !== 'E') {
+        waypoint.label = `${idx}`;
+        waypoint.name = `Node ${idx}`;
+      }
+    });
+    
+    console.log(`Generated ${waypoints.length} waypoints for the path`);
+    return waypoints;
+  }, []);
+
   // Helper function to filter similar paths
   const filterSimilarPaths = (paths) => {
     if (paths.length <= 1) return paths;
@@ -337,17 +437,17 @@ const usePath = (obstacles = []) => {
         uniquePaths.push(currentPath);
       }
       
-      // Stop once we have 2 unique paths (changed from 3)
-      if (uniquePaths.length >= 2) {
+      // Stop once we have 3 unique paths
+      if (uniquePaths.length >= 3) {
         break;
       }
     }
     
-    // If we couldn't find 2 unique paths, add more paths even if somewhat similar
-    if (uniquePaths.length < 2 && simplifiedPaths.length >= 2) {
+    // If we couldn't find 3 unique paths, add more paths even if somewhat similar
+    if (uniquePaths.length < 3 && simplifiedPaths.length >= 3) {
       const additionalPaths = [];
       
-      for (let i = 0; i < simplifiedPaths.length && uniquePaths.length + additionalPaths.length < 2; i++) {
+      for (let i = 0; i < simplifiedPaths.length && uniquePaths.length + additionalPaths.length < 3; i++) {
         // Skip paths already in uniquePaths
         if (!uniquePaths.includes(simplifiedPaths[i])) {
           // Check if this path is significantly different from paths we've already decided to add
@@ -368,7 +468,7 @@ const usePath = (obstacles = []) => {
             }
           }
           
-          if (isUnique || additionalPaths.length + uniquePaths.length < 2) {
+          if (isUnique || additionalPaths.length + uniquePaths.length < 3) {
             additionalPaths.push(simplifiedPaths[i]);
           }
         }
@@ -378,8 +478,8 @@ const usePath = (obstacles = []) => {
       uniquePaths.push(...additionalPaths);
     }
     
-    // Ensure we never return more than 2 paths and they're unique (changed from 3)
-    return ensureUniquePaths(uniquePaths).slice(0, 2);
+    // Ensure we never return more than 3 paths and they're unique
+    return ensureUniquePaths(uniquePaths);
   };
   
   // A more detailed path similarity calculation that uses more sample points
@@ -459,7 +559,7 @@ const usePath = (obstacles = []) => {
     if (pathCoordinates.length <= 2) return pathCoordinates;
     
     // Douglas-Peucker algorithm with some modifications for route simplification
-    const tolerance = 0.00002; // Approximately 2 meters tolerance
+    const tolerance = 0.000005; // Further reduced tolerance for better detail at zoom
     const result = [pathCoordinates[0]]; // Start with the first point
     
     // Find points that represent significant direction changes
@@ -483,8 +583,8 @@ const usePath = (obstacles = []) => {
       const dotProduct = v1[0]*v2[0] + v1[1]*v2[1];
       const angle = Math.acos(Math.min(1, Math.max(-1, dotProduct / (mag1 * mag2)))) * (180 / Math.PI);
       
-      // Keep points that represent significant turns
-      if (angle > 30) {
+      // Keep points that represent even smaller turns - lower angle threshold for more detail
+      if (angle > 10) {
         result.push(current);
       } else {
         // For smaller turns, check if this creates a detour
@@ -493,22 +593,19 @@ const usePath = (obstacles = []) => {
         // Calculate detour distance (prev->current->next)
         const detourDist = calculateDistance(prev, current) + calculateDistance(current, next);
         
-        // If the detour is significantly longer than the direct path, skip this point
-        if (detourDist > directDist * 1.2) {
-          continue;
+        // If the detour is slightly longer than the direct path, still keep it for better curves
+        if (detourDist > directDist * 1.05) { // Even lower threshold for smoother paths
+          result.push(current);
         }
-        
-        // Otherwise, keep the point for a smoother path
-        result.push(current);
       }
     }
     
     // Always include the last point
     result.push(pathCoordinates[pathCoordinates.length - 1]);
     
-    // If we've simplified too aggressively (less than 20% of original path),
+    // If we've simplified too aggressively (less than 40% of original path),
     // perform a second pass with more points preserved
-    if (result.length < pathCoordinates.length * 0.2 && pathCoordinates.length > 10) {
+    if (result.length < pathCoordinates.length * 0.4 && pathCoordinates.length > 10) {
       return simplifyPathLessAggressively(pathCoordinates);
     }
     
@@ -521,8 +618,8 @@ const usePath = (obstacles = []) => {
     
     const result = [pathCoordinates[0]]; // Start with the first point
     
-    // Include points at regular intervals
-    const step = Math.max(1, Math.floor(pathCoordinates.length / 10));
+    // Include points at regular intervals - more sampling points for smoother path
+    const step = Math.max(1, Math.floor(pathCoordinates.length / 30));
     for (let i = step; i < pathCoordinates.length - 1; i += step) {
       result.push(pathCoordinates[i]);
     }

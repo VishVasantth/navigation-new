@@ -39,20 +39,56 @@ const LocationControls = ({
     }
   };
 
+  // Function to get user's current location
+  const getCurrentLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const userLat = position.coords.latitude;
+          const userLon = position.coords.longitude;
+          
+          // Update the start location to "Your Current Location"
+          setStartLocation("Your Current Location");
+          setStartLat(userLat.toString());
+          setStartLon(userLon.toString());
+        },
+        (error) => {
+          console.error("Error getting location:", error);
+          alert("Could not get your current location. Please enable location services in your browser.");
+        },
+        { enableHighAccuracy: true }
+      );
+    } else {
+      alert("Geolocation is not supported by this browser.");
+    }
+  };
+
   return (
     <>
       <div className="input-group">
         <label>Start Location</label>
-        <select 
-          value={startLocation} 
-          onChange={handleStartLocationChange}
-        >
-          {AMRITA_LOCATIONS.map((loc) => (
-            <option key={`start-${loc.name}`} value={loc.name}>
-              {loc.name}
-            </option>
-          ))}
-        </select>
+        <div className="location-input-container">
+          <select 
+            value={startLocation} 
+            onChange={handleStartLocationChange}
+          >
+            {startLocation === "Your Current Location" && (
+              <option value="Your Current Location">Your Current Location</option>
+            )}
+            {AMRITA_LOCATIONS.map((loc) => (
+              <option key={`start-${loc.name}`} value={loc.name}>
+                {loc.name}
+              </option>
+            ))}
+          </select>
+          <button 
+            className="gps-button" 
+            onClick={getCurrentLocation}
+            title="Use GPS to get your current location"
+          >
+            📍
+          </button>
+        </div>
       </div>
       
       <div className="input-group">

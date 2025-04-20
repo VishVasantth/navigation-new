@@ -11,6 +11,51 @@ const useDetection = (setObstacles) => {
   const [objects, setObjects] = useState([]);
   const videoRef = useRef(null);
   const frameIntervalRef = useRef(null);
+  const videoFeedIntervalRef = useRef(null);
+  
+  // Start fetching video frames on component mount
+  useEffect(() => {
+    // Initialize video feed
+    startVideoFeed();
+    
+    // Clean up on unmount
+    return () => {
+      stopVideoFeed();
+      if (frameIntervalRef.current) {
+        clearInterval(frameIntervalRef.current);
+      }
+    };
+  }, []);
+  
+  // Function to start video feed without detection
+  const startVideoFeed = () => {
+    if (videoFeedIntervalRef.current) {
+      clearInterval(videoFeedIntervalRef.current);
+    }
+    
+    videoFeedIntervalRef.current = setInterval(async () => {
+      try {
+        // Only fetch video frame if detection is not running
+        // (to avoid duplicate fetching when detection is active)
+        if (!detectionRunning) {
+          const frameSrc = await fetchVideoFrame();
+          if (videoRef.current) {
+            videoRef.current.src = frameSrc;
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching video feed:', error);
+      }
+    }, 100);
+  };
+  
+  // Function to stop video feed
+  const stopVideoFeed = () => {
+    if (videoFeedIntervalRef.current) {
+      clearInterval(videoFeedIntervalRef.current);
+      videoFeedIntervalRef.current = null;
+    }
+  };
   
   // Function to start detection
   const startDetection = async () => {
@@ -122,15 +167,6 @@ const useDetection = (setObstacles) => {
       return updatedObstacles;
     });
   }, [setObstacles]);
-  
-  // Clean up intervals on unmount
-  useEffect(() => {
-    return () => {
-      if (frameIntervalRef.current) {
-        clearInterval(frameIntervalRef.current);
-      }
-    };
-  }, []);
   
   return {
     detectionRunning,

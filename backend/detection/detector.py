@@ -67,27 +67,9 @@ class ObjectDetector:
             return False
         
         try:
-            # Determine source - RTSP URL or webcam
-            if self.rtsp_url:
-                logger.info(f"Using RTSP stream from: {self.rtsp_url}")
-                # Configure OpenCV for RTSP streams
-                self.cap = cv2.VideoCapture(self.rtsp_url, cv2.CAP_FFMPEG)
-                
-                # Set RTSP buffer size and other relevant parameters
-                self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)  # Small buffer to reduce latency
-                
-                # Enable TCP for more reliable streaming
-                self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'H264'))
-                
-                # Try to set lower resolution for better performance (might not work with all cameras)
-                self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-                self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-            else:
-                logger.info(f"Using local webcam with ID: {self.camera_id}")
-                self.cap = cv2.VideoCapture(self.camera_id)
-            
-            if not self.cap.isOpened():
-                logger.error(f"Failed to open video source")
+            # Initialize camera
+            if not self.initialize_camera():
+                logger.error("Failed to initialize camera")
                 if self.rtsp_url:
                     raise ValueError(f"Could not connect to RTSP stream: {self.rtsp_url}")
                 else:
@@ -129,6 +111,46 @@ class ObjectDetector:
         logger.info("Detection stopped")
         return True
         
+    def initialize_camera(self):
+        """Initialize the camera/video capture object"""
+        if self.cap is not None and self.cap.isOpened():
+            # Camera is already initialized
+            return True
+        
+        try:
+            # Determine source - RTSP URL or webcam
+            if self.rtsp_url:
+                logger.info(f"Initializing camera from RTSP stream: {self.rtsp_url}")
+                # Configure OpenCV for RTSP streams
+                self.cap = cv2.VideoCapture(self.rtsp_url, cv2.CAP_FFMPEG)
+                
+                # Set RTSP buffer size and other relevant parameters
+                self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)  # Small buffer to reduce latency
+                
+                # Try to set lower resolution for better performance
+                self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+                self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+            else:
+                logger.info(f"Initializing camera with ID: {self.camera_id}")
+                self.cap = cv2.VideoCapture(self.camera_id)
+                
+                # Try to set resolution for webcam
+                self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+                self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+            
+            if not self.cap.isOpened():
+                logger.error(f"Failed to open video source")
+                return False
+            
+            return True
+        
+        except Exception as e:
+            logger.error(f"Error initializing camera: {str(e)}")
+            if self.cap:
+                self.cap.release()
+                self.cap = None
+            return False
+    
     def _detection_loop(self):
         """Main detection loop that runs in a separate thread"""
         logger.info("Detection loop started")
@@ -278,14 +300,26 @@ class ObjectDetector:
                 
         logger.info("Detection loop ended")
     
-    def get_frame_jpg(self):
+    def get_frame_jpg(self, detect=True):
         """Get the current frame as JPEG bytes"""
         with self.lock:
-            if self.current_frame is None:
-                return None
-            
-            frame = self.current_frame.copy()
-            
+            # If detection is running, return the current processed frame
+            if detect and self.current_frame is not None:
+                frame = self.current_frame.copy()
+            else:
+                # Capture a single frame from the camera
+                if not hasattr(self, 'cap') or self.cap is None:
+                    self.initialize_camera()
+                    
+                if not self.cap.isOpened():
+                    logger.error("Camera is not open")
+                    return None
+                    
+                ret, frame = self.cap.read()
+                if not ret:
+                    logger.error("Failed to capture frame")
+                    return None
+        
         # Convert frame to JPEG
         ret, jpeg = cv2.imencode('.jpg', frame)
         if not ret:

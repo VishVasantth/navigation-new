@@ -2,8 +2,8 @@ import axios from 'axios';
 import { GRAPHHOPPER_API_KEY, OPENROUTE_SERVICE_URL, OPENROUTE_SERVICE_KEY } from '../config/constants';
 import { createAvoidancePolygonsFromObstacles } from '../utils/obstacleUtils';
 
-// Function to find path between two points using GraphHopper
-export const fetchGraphHopperRoute = async (start, end) => {
+// Function to find path between two points using OpenRouteService
+export const fetchOpenRouteServiceRoute = async (start, end) => {
   console.log(`Finding path from ${JSON.stringify(start)} to ${JSON.stringify(end)}...`);
   
   try {
@@ -17,98 +17,64 @@ export const fetchGraphHopperRoute = async (start, end) => {
       throw new Error("Invalid coordinates: coordinates must be numbers");
     }
     
-    // First get a direct route - we'll use this as a reference and to find potential waypoints
-    const directPathData = await getDirectRoute(startLat, startLng, endLat, endLng);
+    console.log("Requesting route from OpenRouteService...");
     
-    if (!directPathData || !directPathData.points || !directPathData.points.coordinates) {
-      console.error("Failed to get direct path for reference");
-      throw new Error("Failed to get reference path");
+    // Get alternative routes from OpenRouteService
+    const response = await axios.post(
+      `${OPENROUTE_SERVICE_URL}/v2/directions/foot-walking/geojson`,
+      {
+        coordinates: [
+          [startLng, startLat],
+          [endLng, endLat]
+        ],
+        alternative_routes: {
+          target_count: 3,
+          weight_factor: 1.8
+        },
+        preference: "recommended",
+        instructions: false,
+        extra_info: ["waytype", "steepness"]
+      },
+      {
+        headers: {
+          'Authorization': OPENROUTE_SERVICE_KEY,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    
+    if (!response.data || !response.data.features || response.data.features.length === 0) {
+      console.error("No routes found in OpenRouteService response");
+      throw new Error("No routes found");
     }
     
-    console.log("Got reference direct path");
-    const pathCoordinates = directPathData.points.coordinates;
+    console.log(`Received ${response.data.features.length} routes from OpenRouteService`);
     
-    // Create a grid of potential waypoints around the path
-    // This simulates finding intersections by placing points at regular intervals
-    const potentialWaypoints = generateWaypointsGrid(pathCoordinates, startLat, startLng, endLat, endLng);
-    
-    console.log(`Generated ${potentialWaypoints.length} potential waypoints`);
-    
-    // Initialize paths array
+    // Process the response to create paths in the same format as our GraphHopper implementation
     let allPaths = [];
     
-    // Try the alternative_route algorithm first
-    try {
-      const alternativeData = await fetchAlternativeRoutes(startLat, startLng, endLat, endLng);
-      
-      if (alternativeData && alternativeData.paths && alternativeData.paths.length > 0) {
-        console.log(`Got ${alternativeData.paths.length} paths from alternative_route algorithm`);
-        allPaths = [...alternativeData.paths];
-      }
-    } catch (error) {
-      console.error("Error getting alternative routes:", error);
-    }
-    
-    // If we still need more paths, try multiple waypoint combinations
-    if (allPaths.length < 3) {
-      console.log("Getting more routes via waypoints...");
-      
-      // First, try single waypoint routes (6 different waypoints)
-      const singleWaypointPromises = potentialWaypoints.slice(0, 8).map(waypoint => 
-        getRouteViaWaypoint(startLat, startLng, endLat, endLng, waypoint.lat, waypoint.lng)
-      );
-      
-      let singleWaypointRoutes = [];
-      try {
-        const results = await Promise.all(singleWaypointPromises);
-        singleWaypointRoutes = results.filter(route => route !== null);
-        console.log(`Got ${singleWaypointRoutes.length} routes with single waypoints`);
-        allPaths = [...allPaths, ...singleWaypointRoutes];
-      } catch (error) {
-        console.error("Error getting single waypoint routes:", error);
-      }
-      
-      // If still not enough, try routes with two waypoints for more complex paths
-      if (allPaths.length < 4) {
-        // Use a subset of waypoints to create pairs for efficiency
-        const waypointsForPairs = potentialWaypoints.slice(0, 5);
+    // Process each feature/route
+    for (const feature of response.data.features) {
+      if (feature.geometry && feature.geometry.coordinates) {
+        // Convert OpenRouteService coordinates to the format we need
+        // ORS returns [lon, lat] but we need [lat, lon] for internal usage
+        const coordinates = feature.geometry.coordinates.map(coord => [coord[1], coord[0]]);
         
-        let doubleWaypointPromises = [];
-        
-        // Create distinct pairs of waypoints
-        for (let i = 0; i < waypointsForPairs.length; i++) {
-          for (let j = i + 1; j < waypointsForPairs.length; j++) {
-            doubleWaypointPromises.push(
-              getRouteViaTwoWaypoints(
-                startLat, startLng, 
-                endLat, endLng, 
-                waypointsForPairs[i].lat, waypointsForPairs[i].lng,
-                waypointsForPairs[j].lat, waypointsForPairs[j].lng
-              )
-            );
-          }
-        }
-        
-        try {
-          // Limit the number of parallel requests
-          const chunkSize = 3;
-          let doubleWaypointRoutes = [];
-          
-          for (let i = 0; i < doubleWaypointPromises.length; i += chunkSize) {
-            const chunk = doubleWaypointPromises.slice(i, i + chunkSize);
-            const results = await Promise.all(chunk);
-            doubleWaypointRoutes = [...doubleWaypointRoutes, ...results.filter(route => route !== null)];
-          }
-          
-          console.log(`Got ${doubleWaypointRoutes.length} routes with double waypoints`);
-          allPaths = [...allPaths, ...doubleWaypointRoutes];
-        } catch (error) {
-          console.error("Error getting double waypoint routes:", error);
-        }
+        // Add to paths array with distance and time information
+        allPaths.push({
+          distance: feature.properties.summary.distance,
+          time: feature.properties.summary.duration * 1000, // Convert seconds to milliseconds
+          points: {
+            coordinates: feature.geometry.coordinates // Keep as [lon, lat] for compatibility
+          },
+          // Include extra information from OpenRouteService if available
+          extras: feature.properties.extras || {},
+          segments: feature.properties.segments || []
+        });
       }
     }
     
-    // If we still have no paths, create a default direct path
+    // If no paths found, create a default direct path
     if (allPaths.length === 0) {
       console.log("No paths found, creating a default path");
       const directPath = createDirectPath({ lat: startLat, lon: startLng }, { lat: endLat, lon: endLng });
@@ -117,7 +83,7 @@ export const fetchGraphHopperRoute = async (start, end) => {
         distance: directPath.distance,
         time: directPath.time * 60 * 1000, // Convert to milliseconds
         points: {
-          coordinates: directPath.path.map(coord => [coord[1], coord[0]]) // Swap for GraphHopper format
+          coordinates: directPath.path.map(coord => [coord[1], coord[0]]) // Swap for API format
         }
       });
     }
@@ -136,6 +102,12 @@ export const fetchGraphHopperRoute = async (start, end) => {
     console.error("Error fetching routes:", error);
     throw error;
   }
+};
+
+// Old GraphHopper implementation kept for reference and fallback
+export const fetchGraphHopperRoute = async (start, end) => {
+  // Use the new OpenRouteService function instead
+  return fetchOpenRouteServiceRoute(start, end);
 };
 
 // Helper function to fetch alternative routes from GraphHopper
@@ -375,31 +347,78 @@ async function getRouteViaWaypoint(startLat, startLng, endLat, endLng, waypointL
 }
 
 // Function to create a direct path between two points when routing fails
-export const fetchGraphHopperFallbackRoute = async (start, end) => {
+export const fetchOpenRouteServiceFallbackRoute = async (start, end) => {
   try {
-    // Create a basic GraphHopper URL with simplified parameters
-    const url = `https://graphhopper.com/api/1/route?` +
-      `point=${start.lat},${start.lon || start.lng}&` +
-      `point=${end.lat},${end.lon || end.lng}&` +
-      `vehicle=foot&` +
-      `calc_points=true&` +
-      `points_encoded=false&` +
-      `key=${GRAPHHOPPER_API_KEY}`;
+    console.log("Attempting fallback route with OpenRouteService");
     
-    console.log(`Fallback routing with GraphHopper: ${url}`);
+    // Try direct route with OpenRouteService
+    const startLat = parseFloat(start.lat);
+    const startLng = parseFloat(start.lon || start.lng);
+    const endLat = parseFloat(end.lat);
+    const endLng = parseFloat(end.lon || end.lng);
     
-    const response = await fetch(url);
-    const data = await response.json();
+    const response = await axios.post(
+      `${OPENROUTE_SERVICE_URL}/v2/directions/foot-walking/geojson`,
+      {
+        coordinates: [
+          [startLng, startLat],
+          [endLng, endLat]
+        ],
+        preference: "shortest", // Use shortest path for fallback
+        instructions: false
+      },
+      {
+        headers: {
+          'Authorization': OPENROUTE_SERVICE_KEY,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
     
-    if (data.paths && data.paths.length > 0) {
-      return data;
+    if (response.data && response.data.features && response.data.features.length > 0) {
+      // Convert to the expected format
+      const feature = response.data.features[0];
+      return {
+        paths: [{
+          distance: feature.properties.summary.distance,
+          time: feature.properties.summary.duration * 1000, // Convert to milliseconds
+          points: {
+            coordinates: feature.geometry.coordinates // Already in [lon, lat] format
+          }
+        }]
+      };
     } else {
       throw new Error("No paths found in fallback route");
     }
   } catch (error) {
     console.error("Fallback routing failed:", error);
-    throw error;
+    
+    // Fallback to the original GraphHopper if needed
+    if (process.env.NODE_ENV === 'development') {
+      try {
+        return fetchGraphHopperFallbackRoute(start, end);
+      } catch (ghError) {
+        console.error("GraphHopper fallback also failed:", ghError);
+      }
+    }
+    
+    // Create a truly direct path
+    const directPath = createDirectPath(start, end);
+    return {
+      paths: [{
+        distance: directPath.distance,
+        time: directPath.time * 60 * 1000,
+        points: {
+          coordinates: directPath.path.map(coord => [coord[1], coord[0]])
+        }
+      }]
+    };
   }
+};
+
+// Update the old fallback function to use the new implementation
+export const fetchGraphHopperFallbackRoute = async (start, end) => {
+  return fetchOpenRouteServiceFallbackRoute(start, end);
 };
 
 // Function to create a truly direct path when all routing fails

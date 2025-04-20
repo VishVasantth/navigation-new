@@ -103,20 +103,28 @@ def get_frame():
     global detector
     
     try:
-        if detector and detector.is_running:
-            frame_jpg = detector.get_frame_jpg()
+        # If detector exists, try to get a frame
+        if detector:
+            # If detection is running, get the frame from the detector
+            if detector.is_running:
+                frame_jpg = detector.get_frame_jpg()
+                if frame_jpg:
+                    return Response(frame_jpg, mimetype='image/jpeg')
+            
+            # If detection is not running or no frame available, initialize camera and get a frame
+            if not hasattr(detector, 'cap') or detector.cap is None:
+                detector.initialize_camera()
+            
+            # Capture a single frame
+            frame_jpg = detector.get_frame_jpg(detect=False)
             if frame_jpg:
                 return Response(frame_jpg, mimetype='image/jpeg')
-            else:
-                return jsonify({
-                    'status': 'error',
-                    'message': 'No frame available'
-                }), 404
-        else:
-            return jsonify({
-                'status': 'error',
-                'message': 'Detection not running'
-            }), 400
+        
+        # If we still don't have a frame, return an error
+        return jsonify({
+            'status': 'error',
+            'message': 'No frame available'
+        }), 404
             
     except Exception as e:
         logger.error(f"Error getting frame: {str(e)}")

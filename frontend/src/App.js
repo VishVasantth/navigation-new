@@ -11,6 +11,7 @@ import LocationControls from './components/LocationControls';
 import ControlButtons from './components/ControlButtons';
 import DetectionDisplay from './components/DetectionDisplay';
 import RouteSelector from './components/RouteSelector';
+import MapInitializer from './components/MapInitializer';
 
 // Hooks
 import usePath from './hooks/usePath';
@@ -88,12 +89,13 @@ function MapController({ path, alternativePaths, showAllPaths, selectedPathIndex
       const boundsSize = bounds.getNorthEast().distanceTo(bounds.getSouthWest());
       const dynamicPadding = Math.min(100, Math.max(50, boundsSize / 20));
       
-      // Add some padding around the bounds for better context
-      map.fitBounds(bounds, {
+      // Use a single smooth flyToBounds animation
+      map.flyToBounds(bounds, {
         padding: [dynamicPadding, dynamicPadding],
         maxZoom: 18,
         animate: true,
-        duration: 0.8
+        duration: 1.5,  // Longer duration for smoother effect
+        easeLinearity: 0.25  // More natural easing
       });
       
       console.log("Map zoomed to fit route and markers");
@@ -108,8 +110,11 @@ function MapController({ path, alternativePaths, showAllPaths, selectedPathIndex
           (startMarker.position.lng + endMarker.position.lng) / 2
         );
         
-        // Set a reasonable zoom level
-        map.setView(center, 16, { animate: true });
+        // Set a reasonable zoom level with animation
+        map.flyTo(center, 16, { 
+          animate: true,
+          duration: 1.5
+        });
         console.log("Used fallback centering method");
       } catch (fallbackError) {
         console.error("Fallback centering also failed:", fallbackError);
@@ -119,16 +124,14 @@ function MapController({ path, alternativePaths, showAllPaths, selectedPathIndex
   
   // Effect to handle zooming when a path is found or changed
   useEffect(() => {
-    fitMapToRoute();
-  }, [fitMapToRoute, path, selectedPathIndex]);
-  
-  // Effect to handle route selection changes
-  useEffect(() => {
-    // When the selected path index changes, we need to refit the map
+    // Only fit the map to the route when the path is initially loaded
     if (path && path.length > 0) {
+      // Use a small timeout to ensure all paths are fully rendered before animation
       fitMapToRoute();
     }
-  }, [fitMapToRoute, selectedPathIndex]);
+  }, [fitMapToRoute, path]);
+  
+  // No separate effect for selectedPathIndex changes to avoid multiple animations
   
   return null;
 }
@@ -245,282 +248,324 @@ function App() {
   }, [path, alternativePaths]);
   
   return (
-    <div className="app">
+    <div className={`app ${placingObstacle ? 'placing-obstacle' : ''}`}>
       <div className="controls">
         <h2>Navigation Controls</h2>
-        
-        <LocationControls
-          startLocation={startLocation}
-          setStartLocation={setStartLocation}
-          endLocation={endLocation}
-          setEndLocation={setEndLocation}
-          startLat={startLat}
-          setStartLat={setStartLat}
-          startLon={startLon}
-          setStartLon={setStartLon}
-          endLat={endLat}
-          setEndLat={setEndLat}
-          endLon={endLon}
-          setEndLon={setEndLon}
-        />
-        
-        <ControlButtons
-          cleanupAllOperations={cleanupAllOperations}
-          findPath={findPath}
-          startLat={startLat}
-          startLon={startLon}
-          startLocation={startLocation}
-          endLat={endLat}
-          endLon={endLon}
-          endLocation={endLocation}
-          simulateMovement={simulateMovement}
-          detectionRunning={detectionRunning}
-          startDetection={startDetection}
-          stopDetection={stopDetection}
-          placingObstacle={placingObstacle}
-          setPlacingObstacle={setPlacingObstacle}
-          clearObstacles={clearObstacles}
-        />
-        
-        {/* Route selector button and collapsible panel */}
-        {path && path.length > 0 && (
-          <div className="route-selector-container">
-            <button 
-              className={`route-selector-toggle ${showRouteSelector ? 'active' : ''}`}
-              onClick={() => setShowRouteSelector(!showRouteSelector)}
-            >
-              {showRouteSelector ? 'Hide Route Options' : 'Show Route Options'} 
-              {/* {routes.length > 1 && !showRouteSelector && <span className="routes-available-badge">{Math.min(routes.length, 2)}</span>} */}
-            </button>
+        <div className="controls-content">
+          <div className="controls-upper">
+            <LocationControls
+              startLocation={startLocation}
+              setStartLocation={setStartLocation}
+              endLocation={endLocation}
+              setEndLocation={setEndLocation}
+              startLat={startLat}
+              setStartLat={setStartLat}
+              startLon={startLon}
+              setStartLon={setStartLon}
+              endLat={endLat}
+              setEndLat={setEndLat}
+              endLon={endLon}
+              setEndLon={setEndLon}
+            />
             
-            {showRouteSelector && (
-              <RouteSelector
-                routes={routes}
-                selectedPathIndex={selectedPathIndex}
-                selectPath={selectPath}
-                showAllPaths={showAllPaths}
-                toggleShowAllPaths={toggleShowAllPaths}
-              />
+            <ControlButtons
+              cleanupAllOperations={cleanupAllOperations}
+              findPath={findPath}
+              startLat={startLat}
+              startLon={startLon}
+              startLocation={startLocation}
+              endLat={endLat}
+              endLon={endLon}
+              endLocation={endLocation}
+              simulateMovement={simulateMovement}
+              detectionRunning={detectionRunning}
+              startDetection={startDetection}
+              stopDetection={stopDetection}
+              placingObstacle={placingObstacle}
+              setPlacingObstacle={setPlacingObstacle}
+              clearObstacles={clearObstacles}
+            />
+            
+            {path && path.length > 0 && (
+              <div className="route-selector-container">
+                <button 
+                  className={`route-selector-toggle ${showRouteSelector ? 'active' : ''}`}
+                  onClick={() => setShowRouteSelector(!showRouteSelector)}
+                >
+                  {showRouteSelector ? 'Hide Route Options' : 'Show Route Options'} 
+                </button>
+                
+                {showRouteSelector && (
+                  <RouteSelector
+                    routes={routes}
+                    selectedPathIndex={selectedPathIndex}
+                    selectPath={selectPath}
+                    showAllPaths={showAllPaths}
+                    toggleShowAllPaths={toggleShowAllPaths}
+                  />
+                )}
+              </div>
             )}
           </div>
-        )}
+          
+          <div className="video-feed-container">
+            <DetectionDisplay 
+              videoRef={videoRef}
+              detectionRunning={detectionRunning}
+              objects={objects}
+              obstacles={obstacles}
+              clearObstacles={clearObstacles}
+            />
+          </div>
+        </div>
       </div>
       
-      <MapContainer 
-        center={DEFAULT_CENTER} 
-        zoom={16}  // Adjusted initial zoom level
-        maxZoom={18}
-        zoomControl={false}
-        scrollWheelZoom={true}
-        doubleClickZoom={true}
-        attributionControl={true}
-        style={{ height: '100vh', width: '100vw' }}
-        whenCreated={(mapInstance) => {
-          // Make map instance available in the global scope for debugging if needed
-          window.mapInstance = mapInstance;
-        }}
-      >
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        />
-        
-        {/* Add zoom control on the right side */}
-        <ZoomControl position="topright" />
-        
-        {/* Map controller to handle zoom on path change */}
-        <MapController 
-          path={path} 
-          alternativePaths={alternativePaths}
-          showAllPaths={showAllPaths}
-          selectedPathIndex={selectedPathIndex}
-          startMarker={startMarker} 
-          endMarker={endMarker} 
-          obstacles={obstacles}
-        />
-        
-        {/* First render all non-selected paths with lower z-index */}
-        {showAllPaths && alternativePaths && alternativePaths.slice(0, 2).map((pathData, index) => (
-          index !== selectedPathIndex && pathData && pathData.length > 0 && (
-            <React.Fragment key={`alt-path-${index}`}>
+      <div className="map-container">
+        <MapContainer 
+          center={DEFAULT_CENTER} 
+          zoom={16}  
+          maxZoom={18}
+          zoomControl={false}
+          scrollWheelZoom={true}
+          doubleClickZoom={true}
+          attributionControl={true}
+          preferCanvas={true}
+          zoomAnimation={true}
+          fadeAnimation={true}
+          markerZoomAnimation={true}
+          inertia={true}
+          inertiaDeceleration={3000}
+          easeLinearity={0.2}
+          worldCopyJump={false}
+          maxBoundsViscosity={1.0}
+          style={{ 
+            height: '100%', 
+            width: '100%'
+          }}
+          whenCreated={(mapInstance) => {
+            // Make map instance available in the global scope for debugging if needed
+            window.mapInstance = mapInstance;
+            // Pre-render the tiles for smoother zoom experiences
+            mapInstance.invalidateSize();
+            
+            // Apply performance optimizations
+            mapInstance.options.zoomSnap = 0.5;
+            mapInstance.options.zoomDelta = 0.5;
+            mapInstance.options.wheelPxPerZoomLevel = 120;
+            
+            // Add hardware acceleration
+            const container = mapInstance.getContainer();
+            container.style.transform = 'translate3d(0px, 0px, 0px)';
+            container.style.willChange = 'transform';
+          }}
+        >
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          />
+          
+          {/* Add zoom control on the right side */}
+          <ZoomControl position="topright" />
+          
+          {/* Map initializer to ensure map is properly centered */}
+          <MapInitializer center={DEFAULT_CENTER} zoom={16} />
+          
+          {/* Map controller to handle zoom on path change */}
+          <MapController 
+            path={path} 
+            alternativePaths={alternativePaths}
+            showAllPaths={showAllPaths}
+            selectedPathIndex={selectedPathIndex}
+            startMarker={startMarker} 
+            endMarker={endMarker} 
+            obstacles={obstacles}
+          />
+          
+          {/* First render all non-selected paths with lower z-index */}
+          {showAllPaths && alternativePaths && alternativePaths.map((pathData, index) => (
+            index !== selectedPathIndex && pathData && pathData.length > 0 && (
+              <React.Fragment key={`alt-path-${index}`}>
+                {/* White outer stroke for border effect */}
+                <Polyline 
+                  positions={pathData} 
+                  color="white"
+                  weight={8} 
+                  opacity={0.7}
+                  zIndex={5}
+                  smoothFactor={0.5}
+                  renderer={L.canvas({ padding: 0.5 })}
+                  interactive={false}
+                />
+                {/* Inner colored path */}
+                <Polyline 
+                  positions={pathData} 
+                  color="#999999"  /* Gray color for deselected paths */
+                  weight={6} 
+                  opacity={0.8}
+                  zIndex={10}
+                  smoothFactor={0.5}
+                  renderer={L.canvas({ padding: 0.5 })}
+                  interactive={true}
+                  bubblingMouseEvents={false}
+                  eventHandlers={{
+                    click: () => selectPath(index)
+                  }}
+                >
+                  {routes[index] && (
+                    <Tooltip sticky className="route-tooltip">
+                      <div>
+                        <strong>{index === 0 ? "Fastest Route" : "Alternative Route"}</strong>
+                        <div>Distance: {formatDistance(routes[index].distance)}</div>
+                        <div>Time: {formatTime(routes[index].time)}</div>
+                        {/* <div className="tooltip-hint">Click to select this route</div> */}
+                      </div>
+                    </Tooltip>
+                  )}
+                </Polyline>
+              </React.Fragment>
+            )
+          ))}
+          
+          {/* Always render the selected path last so it's on top */}
+          {path && path.length > 0 && (
+            <React.Fragment key={`selected-path-${selectedPathIndex}`}>
               {/* White outer stroke for border effect */}
               <Polyline 
-                positions={pathData} 
+                positions={path} 
                 color="white"
-                weight={8} 
-                opacity={0.7}
-                zIndex={5}
+                weight={12}
+                opacity={0.9}
+                zIndex={50}
+                smoothFactor={0.5}
+                renderer={L.canvas({ padding: 0.5 })}
+                interactive={false}
               />
               {/* Inner colored path */}
               <Polyline 
-                positions={pathData} 
-                color="#999999"  /* Gray color for deselected paths */
-                weight={6} 
-                opacity={0.8}
-                zIndex={10}  /* Lower zIndex to place behind selected path */
-                eventHandlers={{
-                  click: () => selectPath(index)
-                }}
+                positions={path} 
+                color="#0078FF"
+                weight={8} 
+                opacity={1.0}
+                zIndex={55}
+                smoothFactor={0.5}
+                renderer={L.canvas({ padding: 0.5 })}
+                interactive={true}
+                bubblingMouseEvents={false}
               >
-                {routes[index] && (
+                {routes[selectedPathIndex] && (
                   <Tooltip sticky className="route-tooltip">
                     <div>
-                      <strong>{index === 0 ? "Fastest Route" : "Alternative Route"}</strong>
-                      <div>Distance: {formatDistance(routes[index].distance)}</div>
-                      <div>Time: {formatTime(routes[index].time)}</div>
-                      {/* <div className="tooltip-hint">Click to select this route</div> */}
+                      <strong>Selected Route</strong>
+                      <div>Distance: {formatDistance(routes[selectedPathIndex].distance)}</div>
+                      <div>Time: {formatTime(routes[selectedPathIndex].time)}</div>
                     </div>
                   </Tooltip>
                 )}
               </Polyline>
             </React.Fragment>
-          )
-        ))}
-        
-        {/* Always render the selected path last so it's on top */}
-        {path && path.length > 0 && (
-          <React.Fragment key={`selected-path-${selectedPathIndex}`}>
-            {/* White outer stroke for border effect */}
-            <Polyline 
-              positions={path} 
-              color="white"
-              weight={12}  /* Increased from 10 to 12 */
-              opacity={0.9}
-              zIndex={50}  /* Increased to ensure it's always above alternatives */
+          )}
+          
+          {/* Dotted lines from marker to nearest road point */}
+          {startMarker && startRoadConnection && (
+            <Polyline
+              positions={[
+                [startMarker.position.lat, startMarker.position.lng],
+                startRoadConnection
+              ]}
+              color="#0078D7"
+              weight={3}
+              opacity={0.7}
+              dashArray="5, 8"
+              zIndex={25}
+              smoothFactor={0.5}
+              renderer={L.canvas({ padding: 0.5 })}
+              interactive={false}
             />
-            {/* Inner colored path */}
-            <Polyline 
-              positions={path} 
-              color="#0078FF"  /* Blue color for selected path */
-              weight={8} 
-              opacity={1.0}
-              zIndex={55}  /* Increased to ensure it's always above alternatives */
-            >
-              {routes[selectedPathIndex] && (
-                <Tooltip sticky className="route-tooltip">
-                  <div>
-                    <strong>Selected Route</strong>
-                    <div>Distance: {formatDistance(routes[selectedPathIndex].distance)}</div>
-                    <div>Time: {formatTime(routes[selectedPathIndex].time)}</div>
-                  </div>
-                </Tooltip>
-              )}
-            </Polyline>
-          </React.Fragment>
-        )}
-        
-        {/* Dotted lines from marker to nearest road point */}
-        {startMarker && startRoadConnection && (
-          <Polyline
-            positions={[
-              [startMarker.position.lat, startMarker.position.lng],
-              startRoadConnection
-            ]}
-            color="#0078D7"
-            weight={3}
-            opacity={0.7}
-            dashArray="5, 8"
-            zIndex={25}
-          />
-        )}
-        
-        {endMarker && endRoadConnection && (
-          <Polyline
-            positions={[
-              [endMarker.position.lat, endMarker.position.lng],
-              endRoadConnection
-            ]}
-            color="#D83B01"
-            weight={3}
-            opacity={0.7}
-            dashArray="5, 8"
-            zIndex={25}
-          />
-        )}
-        
-        {/* Start and end markers */}
-        {startMarker && (
-          <Marker 
-            position={startMarker.position} 
-            icon={createStartIcon(startMarker.label)}
-            zIndex={30}
-          />
-        )}
-        
-        {endMarker && (
-          <Marker 
-            position={endMarker.position} 
-            icon={createEndIcon(endMarker.label)}
-            zIndex={30}
-          />
-        )}
-        
-        {/* Waypoints - filter out start and end nodes */}
-        {/* Hiding all waypoint markers as requested
-        {waypoints && waypoints
-          .filter(waypoint => waypoint.label !== 'S' && waypoint.label !== 'E')
-          .map((waypoint, index) => (
+          )}
+          
+          {endMarker && endRoadConnection && (
+            <Polyline
+              positions={[
+                [endMarker.position.lat, endMarker.position.lng],
+                endRoadConnection
+              ]}
+              color="#0078D7"
+              weight={3}
+              opacity={0.7}
+              dashArray="5, 8"
+              zIndex={25}
+              smoothFactor={0.5}
+              renderer={L.canvas({ padding: 0.5 })}
+              interactive={false}
+            />
+          )}
+          
+          {/* Start and end markers */}
+          {startMarker && (
             <Marker 
-              key={`waypoint-${index}`}
-              position={waypoint.position}
-              icon={createWaypointIcon(
-                waypoint.label, 
-                { 
-                  isIntersection: waypoint.isIntersection,
-                  isNode: waypoint.isNode
-                }
-              )}
+              position={startMarker.position} 
+              icon={createStartIcon(startMarker.label)}
+              zIndex={30}
+            />
+          )}
+          
+          {endMarker && (
+            <Marker 
+              position={endMarker.position} 
+              icon={createEndIcon(endMarker.label)}
+              zIndex={30}
+            />
+          )}
+          
+          {/* Waypoints - filter out start and end nodes */}
+          {/* Hiding all waypoint markers as requested
+          {waypoints && waypoints
+            .filter(waypoint => waypoint.label !== 'S' && waypoint.label !== 'E')
+            .map((waypoint, index) => (
+              <Marker 
+                key={`waypoint-${index}`}
+                position={waypoint.position}
+                icon={createWaypointIcon(
+                  waypoint.label, 
+                  { 
+                    isIntersection: waypoint.isIntersection,
+                    isNode: waypoint.isNode
+                  }
+                )}
+              />
+            ))}
+          */}
+          
+          {/* Obstacles */}
+          {obstacles.map((obstacle, index) => (
+            <ObstacleMarker 
+              key={`obstacle-${index}`}
+              obstacle={obstacle}
+              setObstacles={setObstacles}
             />
           ))}
-        */}
-        
-        {/* Obstacles */}
-        {obstacles.map((obstacle, index) => (
-          <ObstacleMarker 
-            key={`obstacle-${index}`}
-            obstacle={obstacle}
+          
+          {/* Current location during simulation */}
+          {simulationActive && currentLocation && currentLocation.length === 2 && (
+            <Circle 
+              center={currentLocation} 
+              radius={5}
+              color="#4CAFFF"
+              fillColor="#4CAFFF"
+              fillOpacity={0.8}
+              weight={2}
+            />
+          )}
+          
+          {/* Map click handler */}
+          <MapUpdater 
+            path={path}
+            placingObstacle={placingObstacle}
             setObstacles={setObstacles}
+            obstacleSize={DEFAULT_OBSTACLE_SIZE_METERS}
           />
-        ))}
-        
-        {/* Current location during simulation */}
-        {simulationActive && currentLocation && currentLocation.length === 2 && (
-          <Circle 
-            center={currentLocation} 
-            radius={1.5}
-            color="#FF4400"
-            fillColor="#FF4400"
-            fillOpacity={1}
-            weight={2}
-          />
-        )}
-        
-        {/* Movement trail */}
-        {movementTrail && movementTrail.length > 0 && (
-          <Polyline 
-            positions={movementTrail}
-            color="#FF4400"
-            weight={3}
-            opacity={0.7}
-          />
-        )}
-        
-        {/* Map click handler */}
-        <MapUpdater 
-          placingObstacle={placingObstacle}
-          setObstacles={setObstacles}
-          obstacleSize={DEFAULT_OBSTACLE_SIZE_METERS}
-        />
-      </MapContainer>
-      
-      {/* Video display for object detection */}
-      <DetectionDisplay 
-        videoRef={videoRef}
-        detectionRunning={detectionRunning}
-        objects={objects}
-        obstacles={obstacles}
-        clearObstacles={clearObstacles}
-      />
+        </MapContainer>
+      </div>
     </div>
   );
 }

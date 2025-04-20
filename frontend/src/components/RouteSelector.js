@@ -73,7 +73,7 @@ const RouteSelector = ({ routes, selectedPathIndex, selectPath, showAllPaths, to
         </div>
       ) : (
         <div className="routes-list">
-          {routes.slice(0, 2).map((route, index) => (
+          {routes.map((route, index) => (
             <div 
               key={`route-${index}`} 
               className={`route-item ${selectedPathIndex === index ? 'selected' : ''}`}

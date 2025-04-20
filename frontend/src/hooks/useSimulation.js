@@ -5,8 +5,8 @@ const useSimulation = (path, obstacles) => {
   const [simulationActive, setSimulationActive] = useState(false);
   const [currentLocation, setCurrentLocation] = useState([0, 0]);
   const [movementTrail, setMovementTrail] = useState([]);
-  const [simulationSpeed, setSimulationSpeed] = useState(5);
-  const [simulationIntervalMs, setSimulationIntervalMs] = useState(100);
+  const [simulationSpeed, setSimulationSpeed] = useState(3);
+  const [simulationIntervalMs, setSimulationIntervalMs] = useState(60);
   
   const simulationIntervalRef = useRef(null);
 
@@ -48,13 +48,7 @@ const useSimulation = (path, obstacles) => {
     
     // Create a new interval for the simulation
     const simulationInterval = setInterval(() => {
-      // Always get the current path from state to ensure we're using the most up-to-date path
       // This allows us to follow the new path after rerouting
-      
-      if (!simulationActive) {
-        console.log("Simulation paused, waiting for resume");
-        return;
-      }
       
       try {
         // Access the current path from state
@@ -94,11 +88,8 @@ const useSimulation = (path, obstacles) => {
         // Update position on the map
         setCurrentLocation(currentPosition);
         
-        // Add to movement trail (but limit the size to avoid memory issues)
-        setMovementTrail(prev => {
-          const updated = [...prev, currentPosition];
-          return updated.slice(-100); // Keep only the last 100 positions
-        });
+        // We don't need to track the movement trail anymore
+        // since we're not displaying it
         
         // Check if we've encountered an obstacle
         if (isNearObstacle(currentPosition, obstacles, 3.0)) {
@@ -150,10 +141,10 @@ const useSimulation = (path, obstacles) => {
     // Save the interval reference to clear it later
     simulationIntervalRef.current = simulationInterval;
     return true;
-  }, [path, obstacles, simulationActive, simulationSpeed, simulationIntervalMs]);
+  }, [path, obstacles, simulationSpeed, simulationIntervalMs]);
   
   // Function to simulate movement along the path with obstacle avoidance
-  const simulateMovement = useCallback(async () => {
+  const simulateMovement = useCallback(() => {
     console.log("simulateMovement called");
     
     // First ensure we have a valid path
@@ -177,23 +168,21 @@ const useSimulation = (path, obstacles) => {
       // Start simulation directly with the current path without checking for obstacles beforehand
       console.log("Starting simulation on current path");
       const startPoint = path[0];
-      setMovementTrail([startPoint]);
       setCurrentLocation(startPoint);
       
-      setTimeout(() => {
-        const success = startSimulationFromPoint(0, 0);
-        if (!success) {
-          console.error("Failed to start simulation");
-          setSimulationActive(false);
-          alert("Failed to start simulation. Please try finding a new path.");
-        }
-      }, 500);
+      // Start immediately instead of using setTimeout
+      const success = startSimulationFromPoint(0, 0);
+      if (!success) {
+        console.error("Failed to start simulation");
+        setSimulationActive(false);
+        alert("Failed to start simulation. Please try finding a new path.");
+      }
     } catch (error) {
       console.error("Error in simulation startup:", error);
       setSimulationActive(false);
       alert(`Simulation error: ${error.message}`);
     }
-  }, [path, startSimulationFromPoint]);
+  }, [path, startSimulationFromPoint, setSimulationActive, setCurrentLocation]);
   
   // Clean up interval on unmount
   useEffect(() => {
