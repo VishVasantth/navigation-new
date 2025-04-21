@@ -4,7 +4,9 @@ const DetectionDisplay = ({ videoRef, detectionRunning, objects, obstacles, clea
   return (
     <>
       {/* Video feed - always visible */}
-      <img ref={videoRef} alt="Video feed" />
+      <div className="video-feed">
+        <img ref={videoRef} alt="Video feed" />
+      </div>
       
       {/* Object detection status - only visible when detection is running */}
       {detectionRunning && (
@@ -13,9 +15,9 @@ const DetectionDisplay = ({ videoRef, detectionRunning, objects, obstacles, clea
           <ul>
             {objects.map((obj, index) => (
               <li key={index}>
-                {obj.class} ({obj.confidence.toFixed(2)})
+                Class: {obj.class}, Confidence: {obj.confidence.toFixed(2)}
                 {obj.is_obstacle && (
-                  <strong> (Obstacle)</strong>
+                  <strong> (Obstacle) at [{obj.position[0].toFixed(6)}, {obj.position[1].toFixed(6)}]</strong>
                 )}
               </li>
             ))}
@@ -23,7 +25,7 @@ const DetectionDisplay = ({ videoRef, detectionRunning, objects, obstacles, clea
           {obstacles.length > 0 && (
             <div>
               <h3>Obstacles: {obstacles.length}</h3>
-              <button onClick={clearObstacles} className="clear-button">Clear All</button>
+              <button onClick={clearObstacles}>Clear All</button>
             </div>
           )}
         </div>

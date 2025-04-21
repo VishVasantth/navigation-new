@@ -7,7 +7,7 @@ export const OPENROUTE_SERVICE_URL = process.env.REACT_APP_OPENROUTE_URL || 'htt
 export const OPENROUTE_SERVICE_KEY = process.env.REACT_APP_OPENROUTE_API_KEY || '5b3ce3597851110001cf6248915f1d0c22b5d77003a1bb46c13c029cce3c74cc24bcd250f9f9b18f';
 
 // Map Settings
-export const DEFAULT_CENTER = [10.903831, 76.899862]; // Shifted longitude slightly left
+export const DEFAULT_CENTER = [10.903831, 76.897862]; // Shifted 2% more to the left
 // export const MAP_BOUNDS = [
 //   [10.896, 76.891], // Southwest corner - expanded by 2%
 //   [10.911, 76.906]  // Northeast corner - expanded by 2%

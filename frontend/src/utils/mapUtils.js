@@ -66,6 +66,15 @@ export const createWaypointIcon = (label, options = {}) => {
   });
 };
 
+export const createObstacleWaypointIcon = () => {
+  return L.divIcon({
+    className: 'obstacle-waypoint-marker',
+    html: `<div class="obstacle-icon">!</div>`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16]
+  });
+};
+
 // Function to find intersections between paths and create nodes
 export const findPathIntersections = (paths) => {
   if (!paths || paths.length < 2) return [];

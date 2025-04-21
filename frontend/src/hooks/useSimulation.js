@@ -1,12 +1,16 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { isNearObstacle } from '../utils/obstacleUtils';
 
-const useSimulation = (path, obstacles) => {
+const useSimulation = (path, obstacles, onObstacleDetected = null) => {
   const [simulationActive, setSimulationActive] = useState(false);
   const [currentLocation, setCurrentLocation] = useState([0, 0]);
   const [movementTrail, setMovementTrail] = useState([]);
-  const [simulationSpeed, setSimulationSpeed] = useState(3);
-  const [simulationIntervalMs, setSimulationIntervalMs] = useState(60);
+  const [simulationSpeed, setSimulationSpeed] = useState(3); // Reduced for smoother movement
+  const [simulationIntervalMs, setSimulationIntervalMs] = useState(60); // Increased frequency for smoothness
+  const [obstacleDetected, setObstacleDetected] = useState(false);
+  const [obstacleLocation, setObstacleLocation] = useState(null);
+  const [currentSegmentIndex, setCurrentSegmentIndex] = useState(0);
+  const [currentProgress, setCurrentProgress] = useState(0);
   
   const simulationIntervalRef = useRef(null);
 
@@ -21,6 +25,8 @@ const useSimulation = (path, obstacles) => {
     
     // Reset state
     setMovementTrail([]);
+    setObstacleDetected(false);
+    setObstacleLocation(null);
   }, []);
   
   // Function to start simulation from a specific point on the path
@@ -33,10 +39,15 @@ const useSimulation = (path, obstacles) => {
     console.log(`Starting simulation from segment ${startSegmentIndex} with progress ${startProgressPercentage}%, path length: ${path.length}`);
     
     setSimulationActive(true);
+    setObstacleDetected(false);
     
     // Keep track of which segment we're on and our progress within it
     let currentSegmentIndex = startSegmentIndex;
     let progressPercentage = startProgressPercentage;
+    
+    // Store these values in state for potential rerouting
+    setCurrentSegmentIndex(currentSegmentIndex);
+    setCurrentProgress(progressPercentage);
     
     // Direction of movement - start with forward
     let isMovingForward = true;
@@ -88,16 +99,29 @@ const useSimulation = (path, obstacles) => {
         // Update position on the map
         setCurrentLocation(currentPosition);
         
+        // Store the current segment and progress for potential rerouting
+        setCurrentSegmentIndex(currentSegmentIndex);
+        setCurrentProgress(progressPercentage);
+        
         // We don't need to track the movement trail anymore
         // since we're not displaying it
         
         // Check if we've encountered an obstacle
         if (isNearObstacle(currentPosition, obstacles, 3.0)) {
           console.log("Obstacle detected during simulation");
-          // Stop the simulation when an obstacle is encountered
+          
+          // Store the obstacle location
+          setObstacleLocation(currentPosition);
+          setObstacleDetected(true);
+          
+          // Completely stop the simulation
           clearInterval(simulationInterval);
           setSimulationActive(false);
-          alert("Obstacle detected! Navigation halted.");
+          
+          // Call the callback if provided
+          if (onObstacleDetected && typeof onObstacleDetected === 'function') {
+            onObstacleDetected(currentPosition);
+          }
           return;
         }
         
@@ -141,7 +165,7 @@ const useSimulation = (path, obstacles) => {
     // Save the interval reference to clear it later
     simulationIntervalRef.current = simulationInterval;
     return true;
-  }, [path, obstacles, simulationSpeed, simulationIntervalMs]);
+  }, [path, obstacles, simulationSpeed, simulationIntervalMs, onObstacleDetected]);
   
   // Function to simulate movement along the path with obstacle avoidance
   const simulateMovement = useCallback(() => {
@@ -150,7 +174,6 @@ const useSimulation = (path, obstacles) => {
     // First ensure we have a valid path
     if (!path || path.length < 2) {
       console.error("Cannot simulate: no valid path exists");
-      alert('Please find a path first');
       return;
     }
     
@@ -163,6 +186,8 @@ const useSimulation = (path, obstacles) => {
     // Reset simulation state
     setMovementTrail([]);
     setSimulationActive(true);
+    setObstacleDetected(false);
+    setObstacleLocation(null);
     
     try {
       // Start simulation directly with the current path without checking for obstacles beforehand
@@ -175,14 +200,27 @@ const useSimulation = (path, obstacles) => {
       if (!success) {
         console.error("Failed to start simulation");
         setSimulationActive(false);
-        alert("Failed to start simulation. Please try finding a new path.");
       }
     } catch (error) {
       console.error("Error in simulation startup:", error);
       setSimulationActive(false);
-      alert(`Simulation error: ${error.message}`);
     }
   }, [path, startSimulationFromPoint, setSimulationActive, setCurrentLocation]);
+  
+  // Resume simulation after rerouting
+  const resumeSimulation = useCallback(() => {
+    if (!obstacleDetected || !path || path.length < 2) {
+      console.error("Cannot resume: no obstacle was detected or path is invalid");
+      return;
+    }
+    
+    console.log("Resuming simulation with new path");
+    setObstacleDetected(false);
+    setObstacleLocation(null);
+    
+    // Start simulation from the beginning of the new path
+    startSimulationFromPoint(0, 0);
+  }, [obstacleDetected, path, startSimulationFromPoint]);
   
   // Clean up interval on unmount
   useEffect(() => {
@@ -205,7 +243,10 @@ const useSimulation = (path, obstacles) => {
     cleanupAllOperations,
     startSimulationFromPoint,
     simulateMovement,
-    simulationIntervalRef
+    simulationIntervalRef,
+    obstacleDetected,
+    obstacleLocation,
+    resumeSimulation
   };
 };
 

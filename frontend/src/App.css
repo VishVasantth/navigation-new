@@ -8,109 +8,39 @@
 
 .app {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   height: 100vh;
   overflow: hidden;
 }
 
 .controls {
-  position: relative;
-  height: 100vh;
-  z-index: 10;
+  position: absolute;
+  top: 10px;
+  left: 5px;
+  z-index: 1000;
   background: white;
-  margin: 15px;
-  width: 280px;
-  min-width: 280px;
-  /* overflow: hidden; */
-  display: flex;
-  flex-direction: column;
-  /* box-shadow: 2px 0 6px -2px rgba(0, 0, 0, 0.1); */
-  /* border-right: 1px solid #eee; */
+  padding: 15px;
+  border-radius: 5px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  width: 300px;
+  max-height: 80vh;
+  overflow-y: auto;
 }
 
 .controls h2 {
   margin-top: 0;
-  margin-bottom: 15px;
-  padding-bottom: 10px;
   border-bottom: 1px solid #eee;
-  font-size: 18px;
-  text-align: center;
-}
-
-.controls-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  /* width: 100%; */
-  align-items: center;
-}
-
-.controls-upper {
-  flex: 1;
-  overflow-y: auto;
-  /* padding-right: 5px; */
-  min-height: 100px; /* Ensure there's always some space above the video feed */
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.map-container {
-  flex: 1;
-  position: relative;
-  height: 100vh;
-  overflow: hidden;
-}
-
-/* Map performance optimizations */
-.leaflet-container {
-  will-change: transform;
-  backface-visibility: hidden;
-  perspective: 1000;
-  transform-style: preserve-3d;
-  transform: translate3d(0,0,0);
-  -webkit-transform: translate3d(0,0,0);
-  -webkit-backface-visibility: hidden;
-  -webkit-perspective: 1000;
-  -webkit-transform-style: preserve-3d;
-}
-
-.leaflet-tile-container {
-  will-change: transform;
-  backface-visibility: hidden;
-}
-
-.leaflet-layer {
-  will-change: transform;
-}
-
-.leaflet-marker-icon,
-.leaflet-marker-shadow {
-  will-change: transform;
-}
-
-/* Fast map panning */
-.leaflet-fade-anim .leaflet-tile,
-.leaflet-fade-anim .leaflet-popup {
-  transition: opacity 0.15s linear;
-}
-
-.leaflet-zoom-anim .leaflet-zoom-animated {
-  transition: transform 0.15s ease-out;
+  padding-bottom: 10px;
 }
 
 .input-group {
   margin-bottom: 15px;
-  width: 95%;
 }
 
 .input-group label {
   display: block;
   margin-bottom: 5px;
   font-weight: bold;
-  width: 100%;
 }
 
 .input-group select {
@@ -125,7 +55,7 @@
 .location-input-container {
   display: flex;
   gap: 8px;
-  width: 95%;
+  width: 100%;
   margin-bottom: 8px;
   align-items: center;
 }
@@ -156,7 +86,6 @@
 .coordinates {
   display: flex;
   gap: 5px;
-  width: 100%;
 }
 
 .coordinates input {
@@ -169,25 +98,22 @@
 .buttons {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 11px;
   /* width: 100%; */
-  /* margin-bottom: 15px; */
-  /* -left: 7px; */
-  align-items: center;
-  justify-content: center;
 }
 
 .buttons button {
+  /* font-weight: 400; */
   font-size: 14px;
-  /* padding: 10px 12px; */
+  min-width: 120px;
+  padding: 8px 12px;
   border: none;
   border-radius: 4px;
   background-color: #0078D7;
   color: white;
   cursor: pointer;
   transition: background-color 0.2s;
-  width: 95%; 
-  text-align: center;
+  width: 100%;
 }
 
 .full-width-button {
@@ -196,13 +122,13 @@
 
 .button-row {
   display: flex;
-  gap: 7px;
-  width: 96%;
+  gap: 10px;
+  width: 100%;
 }
 
-/* .half-width-button {
+.half-width-button {
   flex: 1;
-} */
+}
 
 .buttons button:hover {
   background-color: #0063B1;
@@ -212,97 +138,50 @@
   background-color: #D83B01;
 }
 
-/* Route selector container at the bottom of the side panel */
-.route-selector-container {
-  margin-top: auto;
-  padding-top: 15px;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.route-selector-toggle {
-  width: 95%;
-  padding: 8px 12px;
-  font-size: 14px;
-  border: none;
-  border-radius: 4px;
-  background-color: #0078D7;
-  color: white;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.route-selector-toggle:hover {
-  background-color: #0063B1;
-}
-
-.route-selector-toggle.active {
-  background-color: #D83B01;
-}
-
-/* Video feed container in sidebar */
-.video-feed-container {
-  margin-top: auto;
-  margin-bottom: 20px;
-  /* padding: 15px; */
-  /* display: flex; */
-  flex-direction: column;
-  /* align-items: center; */
-  /* justify-content: center; */
-  height: 180px;
-  width: 100%;
-  border: 3px solid #ddd;
-  border-radius: 4px;
+.video-feed {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  z-index: 1000;
+  width: 320px;
+  height: 240px;
+  border: 2px solid #ddd;
+  border-radius: 5px;
   overflow: hidden;
   background-color: #000;
 }
 
-.video-feed-container img {
+.video-feed img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
 .detection-status {
-  position: relative;
-  width: 95%;
+  position: absolute;
+  bottom: 260px;
+  right: 10px;
+  z-index: 1000;
   background: white;
   padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  margin: 10px auto 0 auto;
-  max-height: 200px;
+  border-radius: 5px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  width: 320px;
+  max-height: 300px;
   overflow-y: auto;
-  font-size: 12px;
 }
 
 .detection-status h3 {
   margin-top: 0;
-  margin-bottom: 8px;
-  font-size: 14px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 5px;
 }
 
 .detection-status ul {
   margin: 0;
-  padding-left: 20px;
-  margin-bottom: 10px;
-}
-
-.detection-status .clear-button {
-  padding: 5px 10px;
-  font-size: 12px;
-  background-color: #d32f2f;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-top: 5px;
-}
-
-.detection-status .clear-button:hover {
-  background-color: #b71c1c;
+  padding: 0 0 0 20px;
+  max-height: 150px;
+  overflow-y: auto;
 }
 
 .detection-status li {
@@ -486,7 +365,7 @@
   }
 }
 
-.start-icon, .end-icon, .waypoint-icon {
+.start-icon, .end-icon, .waypoint-icon, .obstacle-icon {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -512,6 +391,29 @@
   height: 24px;
   background-color: #5C2D91;
   font-size: 12px;
+}
+
+.obstacle-icon {
+  width: 32px;
+  height: 32px;
+  background-color: #FF0000;
+  font-size: 18px;
+  font-weight: bold;
+  box-shadow: 0 0 10px rgba(255, 0, 0, 0.7);
+  border: 2px solid white;
+  animation: pulse-red 1.5s infinite;
+}
+
+@keyframes pulse-red {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(255, 0, 0, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 0, 0, 0);
+  }
 }
 
 /* Position zoom controls on the right */
@@ -567,13 +469,4 @@
 /* Obstacle placement cursor */
 .placing-obstacle .leaflet-container {
   cursor: crosshair !important;
-}
-
-/* Ensure all contents are centered properly */
-.controls > h2, 
-.controls-content > *, 
-.controls-upper > *,
-.video-feed-container > * {
-  max-width: 100%;
-  box-sizing: border-box;
 }

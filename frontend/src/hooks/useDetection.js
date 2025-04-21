@@ -11,51 +11,42 @@ const useDetection = (setObstacles) => {
   const [objects, setObjects] = useState([]);
   const videoRef = useRef(null);
   const frameIntervalRef = useRef(null);
-  const videoFeedIntervalRef = useRef(null);
   
-  // Start fetching video frames on component mount
+  // Initialize video feed with placeholder image when component mounts
   useEffect(() => {
-    // Initialize video feed
-    startVideoFeed();
-    
-    // Clean up on unmount
-    return () => {
-      stopVideoFeed();
-      if (frameIntervalRef.current) {
-        clearInterval(frameIntervalRef.current);
-      }
-    };
-  }, []);
-  
-  // Function to start video feed without detection
-  const startVideoFeed = () => {
-    if (videoFeedIntervalRef.current) {
-      clearInterval(videoFeedIntervalRef.current);
+    // Set a placeholder image
+    if (videoRef.current) {
+      // Using a colored background as placeholder
+      const canvas = document.createElement('canvas');
+      canvas.width = 320;
+      canvas.height = 240;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.font = '18px Arial';
+      ctx.fillStyle = '#FFFFFF';
+      ctx.textAlign = 'center';
+      ctx.fillText('Camera Feed', canvas.width/2, canvas.height/2 - 10);
+      ctx.fillText('(Detection not running)', canvas.width/2, canvas.height/2 + 20);
+      
+      videoRef.current.src = canvas.toDataURL();
     }
     
-    videoFeedIntervalRef.current = setInterval(async () => {
+    // Try to fetch a single frame even if detection is not running
+    const fetchInitialFrame = async () => {
       try {
-        // Only fetch video frame if detection is not running
-        // (to avoid duplicate fetching when detection is active)
-        if (!detectionRunning) {
-          const frameSrc = await fetchVideoFrame();
-          if (videoRef.current) {
-            videoRef.current.src = frameSrc;
-          }
+        const frameSrc = await fetchVideoFrame();
+        if (videoRef.current) {
+          videoRef.current.src = frameSrc;
         }
       } catch (error) {
-        console.error('Error fetching video feed:', error);
+        // Initial frame fetch failed, using the placeholder
+        console.log('Using placeholder image for video feed');
       }
-    }, 100);
-  };
-  
-  // Function to stop video feed
-  const stopVideoFeed = () => {
-    if (videoFeedIntervalRef.current) {
-      clearInterval(videoFeedIntervalRef.current);
-      videoFeedIntervalRef.current = null;
-    }
-  };
+    };
+    
+    fetchInitialFrame();
+  }, []);
   
   // Function to start detection
   const startDetection = async () => {
@@ -105,6 +96,23 @@ const useDetection = (setObstacles) => {
       if (frameIntervalRef.current) {
         clearInterval(frameIntervalRef.current);
         frameIntervalRef.current = null;
+      }
+      
+      // Display a static message when detection stops
+      if (videoRef.current) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 320;
+        canvas.height = 240;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.font = '18px Arial';
+        ctx.fillStyle = '#FFFFFF';
+        ctx.textAlign = 'center';
+        ctx.fillText('Camera Feed', canvas.width/2, canvas.height/2 - 10);
+        ctx.fillText('(Detection stopped)', canvas.width/2, canvas.height/2 + 20);
+        
+        videoRef.current.src = canvas.toDataURL();
       }
       
       return true;
@@ -167,6 +175,15 @@ const useDetection = (setObstacles) => {
       return updatedObstacles;
     });
   }, [setObstacles]);
+  
+  // Clean up intervals on unmount
+  useEffect(() => {
+    return () => {
+      if (frameIntervalRef.current) {
+        clearInterval(frameIntervalRef.current);
+      }
+    };
+  }, []);
   
   return {
     detectionRunning,

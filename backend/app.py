@@ -18,7 +18,7 @@ CORS(app)  # Enable CORS for all routes
 detector = None
 
 # Default RTSP URL - replace with your actual RTSP camera URL
-DEFAULT_RTSP_URL = os.environ.get('RTSP_URL', 'rtsp://192.168.174.60:1935/')
+DEFAULT_RTSP_URL = os.environ.get('RTSP_URL', 'rtsp://192.168.129.115:1935/')
 
 @app.route('/start', methods=['POST'])
 def start_detection():
@@ -103,28 +103,20 @@ def get_frame():
     global detector
     
     try:
-        # If detector exists, try to get a frame
-        if detector:
-            # If detection is running, get the frame from the detector
-            if detector.is_running:
-                frame_jpg = detector.get_frame_jpg()
-                if frame_jpg:
-                    return Response(frame_jpg, mimetype='image/jpeg')
-            
-            # If detection is not running or no frame available, initialize camera and get a frame
-            if not hasattr(detector, 'cap') or detector.cap is None:
-                detector.initialize_camera()
-            
-            # Capture a single frame
-            frame_jpg = detector.get_frame_jpg(detect=False)
+        if detector and detector.is_running:
+            frame_jpg = detector.get_frame_jpg()
             if frame_jpg:
                 return Response(frame_jpg, mimetype='image/jpeg')
-        
-        # If we still don't have a frame, return an error
-        return jsonify({
-            'status': 'error',
-            'message': 'No frame available'
-        }), 404
+            else:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'No frame available'
+                }), 404
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'Detection not running'
+            }), 400
             
     except Exception as e:
         logger.error(f"Error getting frame: {str(e)}")
