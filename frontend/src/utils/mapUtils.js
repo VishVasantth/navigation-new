@@ -1,6 +1,23 @@
 import L from 'leaflet';
 import { PATH_COLORS } from '../config/constants';
 
+// Function to calculate distance between two points using Haversine formula (in meters)
+export const calculateDistanceBetweenPoints = (point1, point2) => {
+  const R = 6371e3; // Earth radius in meters
+  const lat1 = point1[0] * Math.PI / 180;
+  const lat2 = point2[0] * Math.PI / 180;
+  const deltaLat = (point2[0] - point1[0]) * Math.PI / 180;
+  const deltaLon = (point2[1] - point1[1]) * Math.PI / 180;
+
+  const a = Math.sin(deltaLat/2) * Math.sin(deltaLat/2) +
+            Math.cos(lat1) * Math.cos(lat2) *
+            Math.sin(deltaLon/2) * Math.sin(deltaLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const distance = R * c;
+
+  return distance; // in meters
+};
+
 // Function to get a color for different paths
 export const getPathColor = (index) => {
   // Use index as is if within range, or cycle through colors for larger indices

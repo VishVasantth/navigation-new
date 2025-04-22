@@ -1,4 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { speakInstruction, isSpeechAvailable, getVoicePreference, saveVoicePreference } from '../services/speechService';
+import { generateNavigationInstruction } from '../services/navigationService';
+import { calculateBearing, getDirectionText } from '../utils/navigationUtils';
 
 const ControlButtons = ({
   cleanupAllOperations,
@@ -17,9 +20,31 @@ const ControlButtons = ({
   setPlacingObstacle,
   clearObstacles
 }) => {
+  // State for navigation options
+  const [voiceNavigationEnabled, setVoiceNavigationEnabled] = useState(getVoicePreference());
+  const [showNavigationOptions, setShowNavigationOptions] = useState(false);
+  
+  // Function to start navigation with selected options
+  const startNavigation = () => {
+    // Save voice preference
+    saveVoicePreference(voiceNavigationEnabled);
+    
+    // Close the options panel
+    setShowNavigationOptions(false);
+    
+    // If voice is enabled, speak the initial instruction
+    if (voiceNavigationEnabled && isSpeechAvailable()) {
+      speakInstruction("Starting navigation. Follow the blue route.");
+    }
+    
+    // Start the simulation movement
+    cleanupAllOperations();
+    simulateMovement();
+  };
+  
   return (
     <div className="buttons">
-      {/* Find Path and Simulate Movement in the same row */}
+      {/* Find Path and Start Navigation in the same row */}
       <div className="button-row">
         <button 
           className="half-width-button"
@@ -47,13 +72,44 @@ const ControlButtons = ({
         <button 
           className="half-width-button"
           onClick={() => {
-            cleanupAllOperations();
-            simulateMovement();
+            // Show navigation options panel instead of starting immediately
+            setShowNavigationOptions(!showNavigationOptions);
           }}
         >
-          Simulate Movement
+          Start Navigation
         </button>
       </div>
+      
+      {/* Navigation Options Panel */}
+      {showNavigationOptions && (
+        <div className="navigation-options">
+          <div className="option-row">
+            <label>
+              <input 
+                type="checkbox" 
+                checked={voiceNavigationEnabled}
+                onChange={(e) => setVoiceNavigationEnabled(e.target.checked)}
+              />
+              Enable Voice Navigation
+            </label>
+          </div>
+          
+          <div className="button-row navigation-action-buttons">
+            <button 
+              onClick={() => setShowNavigationOptions(false)}
+              className="half-width-button secondary-button"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={startNavigation}
+              className="half-width-button primary-button"
+            >
+              Begin Navigation
+            </button>
+          </div>
+        </div>
+      )}
 
       {!detectionRunning ? (
         <button 

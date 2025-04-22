@@ -1,4 +1,5 @@
 import { calculateDistance, minDistanceFromPointToLineSegment } from './pathUtils';
+import { calculateDistanceBetweenPoints } from './mapUtils';
 
 // Check if a point is near any obstacle
 export const isNearObstacle = (point, obstacles, threshold = 0.0002) => {
@@ -13,13 +14,8 @@ export const isNearObstacle = (point, obstacles, threshold = 0.0002) => {
       continue; // Skip invalid obstacles
     }
     
-    const latDiff = point[0] - obstacle.position[0];
-    const lngDiff = point[1] - obstacle.position[1];
-    const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
-    
-    // Convert lat/lng distance to approximate meters (very rough approximation)
-    // 0.0001 in lat/lng is roughly 11 meters
-    const distanceInMeters = distance * 111000;
+    // Use the Haversine formula to calculate accurate distance in meters
+    const distanceInMeters = calculateDistanceBetweenPoints(point, obstacle.position);
     
     // Minimum safe distance is the obstacle radius plus a small safety margin
     const safeDistance = obstacle.radius + 3; // 3 meter safety margin (reduced from 8)

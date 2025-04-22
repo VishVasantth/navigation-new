@@ -470,3 +470,246 @@
 .placing-obstacle .leaflet-container {
   cursor: crosshair !important;
 }
+
+/* Navigation Options Panel */
+.navigation-options {
+  background-color: #f7f7f7;
+  border-radius: 4px;
+  padding: 12px;
+  margin: 10px 0;
+  border: 1px solid #ddd;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.option-row {
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+}
+
+.option-row label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 14px;
+  user-select: none;
+}
+
+.option-row input[type="checkbox"] {
+  margin-right: 8px;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.navigation-action-buttons {
+  margin-top: 12px;
+}
+
+/* Button variations */
+.primary-button {
+  background-color: #0078D7;
+  color: white;
+}
+
+.primary-button:hover {
+  background-color: #0063B1;
+}
+
+.secondary-button {
+  background-color: #f0f0f0;
+  color: #333;
+  border: 1px solid #ccc;
+}
+
+.secondary-button:hover {
+  background-color: #e0e0e0;
+}
+
+/* Navigation Card */
+.navigation-cards-container {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 90%;
+  max-width: 500px;
+  z-index: 1000;
+}
+
+.navigation-card {
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  padding: 16px 20px;
+  margin-bottom: 10px;
+  width: 100%;
+  animation: slide-up 0.3s ease-out;
+}
+
+/* Current instruction - the primary card */
+.navigation-card.current {
+  background-color: #ffffff;
+}
+
+/* Upcoming instructions - smaller and more subtle */
+.navigation-card.upcoming {
+  background-color: rgba(255, 255, 255, 0.85);
+  padding: 12px 16px;
+  transform: scale(0.9);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 8px;
+}
+
+.navigation-card.upcoming .direction-arrow {
+  font-size: 28px;
+  width: 40px;
+  height: 40px;
+  opacity: 0.7;
+}
+
+.navigation-card.upcoming .instruction-text {
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.direction-arrow {
+  margin-right: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease-in-out;
+}
+
+.direction-arrow svg {
+  width: 28px;
+  height: 28px;
+  stroke: #000;
+  stroke-width: 2px;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Fix the weight of the arrow paths */
+.direction-arrow path {
+  vector-effect: non-scaling-stroke;
+}
+
+/* Specific styles for different directions */
+.direction-arrow[data-direction="up"] svg {
+  transform: rotate(0deg);
+}
+
+.direction-arrow[data-direction="right"] svg {
+  transform: rotate(0deg);
+}
+
+.direction-arrow[data-direction="left"] svg {
+  transform: rotate(0deg);
+}
+
+.direction-arrow[data-direction="uturn"] svg {
+  transform: rotate(0deg);
+}
+
+.direction-arrow[data-direction="destination"] svg {
+  transform: rotate(0deg);
+}
+
+.instruction-text {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+}
+
+/* END Navigation Card Styles */
+
+/* ESP32 Control Styles */
+.esp32-control-container {
+  margin: 10px 0;
+}
+
+.esp32-status {
+  background-color: #f5f5f5;
+  border-radius: 5px;
+  padding: 10px;
+  margin-top: 5px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.status-indicator {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 5px;
+}
+
+.status-indicator.connected {
+  background-color: #28a745;
+  box-shadow: 0 0 5px #28a745;
+}
+
+.status-indicator.disconnected {
+  background-color: #dc3545;
+  box-shadow: 0 0 5px #dc3545;
+}
+
+.esp32-address-input {
+  flex: 1;
+  min-width: 200px;
+  padding: 5px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.connect-button {
+  background-color: #0275d8;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.connect-button:hover {
+  background-color: #025aa5;
+}
+
+button.active {
+  background-color: #28a745;
+}
+
+button.active:hover {
+  background-color: #218838;
+}
