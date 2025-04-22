@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Circle, Tooltip, Marker } from 'react-leaflet';
-import L from 'leaflet';
+// import L from 'leaflet';
 import { createObstacleWaypointIcon } from '../utils/mapUtils';
 
 // Component to display an obstacle on the map
