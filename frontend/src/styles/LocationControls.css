@@ -1,0 +1,101 @@
+.location-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.location-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.location-group label {
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+}
+
+.location-selector {
+  display: flex;
+  gap: 8px;
+}
+
+.location-dropdown {
+  flex-grow: 1;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.location-pin-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  background-color: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.location-pin-btn:hover {
+  background-color: #e9e9e9;
+}
+
+.coord-inputs {
+  display: flex;
+  gap: 8px;
+}
+
+.coord-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.find-path-btn, .navigation-btn {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.find-path-btn {
+  background-color: #4285F4;
+  color: white;
+}
+
+.find-path-btn:hover {
+  background-color: #3b78e7;
+}
+
+.navigation-btn {
+  background-color: #34A853;
+  color: white;
+}
+
+.navigation-btn:hover {
+  background-color: #2d9249;
+}
+
+.navigation-btn.active {
+  background-color: #EA4335;
+}
+
+.navigation-btn.active:hover {
+  background-color: #d33426;
+} 

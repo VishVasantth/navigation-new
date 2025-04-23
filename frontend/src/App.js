@@ -22,7 +22,6 @@ import useDetection from './hooks/useDetection';
 import { createStartIcon, createEndIcon, createWaypointIcon } from './utils/mapUtils';
 import { DEFAULT_CENTER, DEFAULT_OBSTACLE_SIZE_METERS, AMRITA_LOCATIONS, PATH_COLORS } from './config/constants';
 import { findClosestPointOnPathWithIndex } from './utils/pathUtils';
-import { initWebSocket, isWebSocketConnected } from './services/websocketService';
 
 // Helper function to format distance display
 const formatDistance = (meters) => {
@@ -266,9 +265,6 @@ function App() {
   // Reference for resuming simulation
   const simulationResumeRef = useRef(null);
   
-  const [esp32Connected, setEsp32Connected] = useState(false);
-  const [esp32Address, setEsp32Address] = useState('ws://192.168.4.1:81');
-  
   const { 
     simulationActive,
     currentLocation,
@@ -279,9 +275,7 @@ function App() {
     obstacleLocation,
     resumeSimulation,
     currentInstruction,
-    instructionHistory,
-    usingESP32,
-    toggleESP32Mode
+    instructionHistory
   } = useSimulation(path, obstacles, handleObstacleDetected);
   
   // Store the resume function in the ref so it can be accessed from the callback
@@ -346,30 +340,6 @@ function App() {
     console.log("Alternative paths:", alternativePaths);
   }, [path, alternativePaths]);
   
-  // Initialize WebSocket connection to ESP32
-  const connectToESP32 = useCallback(() => {
-    if (isWebSocketConnected()) {
-      console.log("Already connected to ESP32");
-      return true;
-    }
-    
-    const success = initWebSocket(esp32Address);
-    setEsp32Connected(success);
-    return success;
-  }, [esp32Address]);
-  
-  // Toggle ESP32 control
-  const toggleESP32Control = useCallback(() => {
-    if (!esp32Connected) {
-      const connected = connectToESP32();
-      if (connected) {
-        toggleESP32Mode();
-      }
-    } else {
-      toggleESP32Mode();
-    }
-  }, [esp32Connected, connectToESP32, toggleESP32Mode]);
-  
   return (
     <div className={`app ${placingObstacle ? 'placing-obstacle' : ''}`}>
       <div className="controls">
@@ -407,36 +377,6 @@ function App() {
           setPlacingObstacle={setPlacingObstacle}
           clearObstacles={clearObstacles}
         />
-        
-        {/* ESP32 Control Button */}
-        <div className="esp32-control-container">
-          <button 
-            className={`full-width-button ${usingESP32 ? 'active' : ''}`}
-            onClick={toggleESP32Control}
-          >
-            {usingESP32 ? 'Disable ESP32 Control' : 'Enable ESP32 Control'}
-          </button>
-          
-          {usingESP32 && (
-            <div className="esp32-status">
-              <span className={`status-indicator ${esp32Connected ? 'connected' : 'disconnected'}`}></span>
-              {esp32Connected ? 'ESP32 Connected' : 'ESP32 Disconnected'}
-              <input 
-                type="text" 
-                value={esp32Address} 
-                onChange={(e) => setEsp32Address(e.target.value)}
-                placeholder="WebSocket address (ws://192.168.4.1:81)" 
-                className="esp32-address-input"
-              />
-              <button 
-                className="connect-button"
-                onClick={connectToESP32}
-              >
-                Connect
-              </button>
-            </div>
-          )}
-        </div>
         
         {/* Route selector button and collapsible panel */}
         {path && path.length > 0 && (
