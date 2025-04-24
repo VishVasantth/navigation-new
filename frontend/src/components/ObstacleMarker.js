@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Circle, Tooltip, Marker } from 'react-leaflet';
 // import L from 'leaflet';
 import { createObstacleWaypointIcon } from '../utils/mapUtils';
+import { DEFAULT_OBSTACLE_SIZE_METERS } from '../config/constants';
 
 // Component to display an obstacle on the map
 const ObstacleMarker = ({ obstacle, setObstacles }) => {
@@ -28,6 +29,11 @@ const ObstacleMarker = ({ obstacle, setObstacles }) => {
   const isDetectedObstacle = obstacle.isDetected === true;
   const isPermanentObstacle = obstacle.isPermanent === true;
   
+  // Determine numeric radius with fallback
+  const radius = (typeof obstacle.radius === 'number' && !isNaN(obstacle.radius))
+    ? obstacle.radius
+    : DEFAULT_OBSTACLE_SIZE_METERS;
+  
   // For permanent detected obstacles, use a waypoint-style marker
   if (isDetectedObstacle && isPermanentObstacle) {
     return (
@@ -35,7 +41,7 @@ const ObstacleMarker = ({ obstacle, setObstacles }) => {
         {/* Add a red circle to mark the obstacle area */}
         <Circle
           center={obstacle.position}
-          radius={obstacle.radius}
+          radius={radius}
           pathOptions={{
             color: '#FF0000',
             fillColor: '#FF0000',
@@ -90,7 +96,7 @@ const ObstacleMarker = ({ obstacle, setObstacles }) => {
   return (
     <Circle
       center={obstacle.position}
-      radius={obstacle.radius}
+      radius={radius}
       pathOptions={pathOptions}
       eventHandlers={{
         click: (e) => {

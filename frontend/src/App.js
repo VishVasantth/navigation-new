@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { MapContainer, TileLayer, Marker, Polyline, ZoomControl, Circle, useMap, Tooltip } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polyline, ZoomControl, Circle, useMap, Tooltip, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import './App.css';
 import 'leaflet/dist/leaflet.css';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faBars, faTimes, faLocationArrow } from '@fortawesome/free-solid-svg-icons';
 
 // Components
 import MapUpdater from './components/MapUpdater';
@@ -22,6 +24,8 @@ import useDetection from './hooks/useDetection';
 import { createStartIcon, createEndIcon, createWaypointIcon } from './utils/mapUtils';
 import { DEFAULT_CENTER, DEFAULT_OBSTACLE_SIZE_METERS, AMRITA_LOCATIONS, PATH_COLORS } from './config/constants';
 import { findClosestPointOnPathWithIndex } from './utils/pathUtils';
+import { generateNavigationInstruction } from './services/navigationService';
+import { speakInstruction, isSpeechAvailable } from './services/speechService';
 
 // Helper function to format distance display
 const formatDistance = (meters) => {
@@ -45,8 +49,31 @@ const formatTime = (minutes) => {
   }
 };
 
+// Helper function to calculate distance between two points (in meters)
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  const R = 6371000; // Radius of the earth in meters
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+};
+
 // Helper component to control the map programmatically
-function MapController({ path, alternativePaths, showAllPaths, selectedPathIndex, startMarker, endMarker, obstacles }) {
+function MapController({ 
+  path, 
+  alternativePaths, 
+  showAllPaths, 
+  selectedPathIndex, 
+  startMarker, 
+  endMarker, 
+  obstacles,
+  userLocation,
+  followUser
+}) {
   const map = useMap();
   
   // Function to fit the map to the current route and markers
@@ -84,6 +111,11 @@ function MapController({ path, alternativePaths, showAllPaths, selectedPathIndex
         });
       }
       
+      // Include user's current location if available
+      if (userLocation && userLocation.length === 2) {
+        bounds.extend(userLocation);
+      }
+      
       // Calculate padding based on the size of the bounds
       // Larger area = more padding for context
       const boundsSize = bounds.getNorthEast().distanceTo(bounds.getSouthWest());
@@ -117,20 +149,29 @@ function MapController({ path, alternativePaths, showAllPaths, selectedPathIndex
         console.error("Fallback centering also failed:", fallbackError);
       }
     }
-  }, [map, path, alternativePaths, showAllPaths, obstacles, startMarker, endMarker]);
+  }, [map, path, alternativePaths, showAllPaths, obstacles, startMarker, endMarker, userLocation]);
   
   // Effect to handle zooming when a path is found or changed
   useEffect(() => {
-    fitMapToRoute();
-  }, [fitMapToRoute, path, selectedPathIndex]);
+    if (!followUser) {
+      fitMapToRoute();
+    }
+  }, [fitMapToRoute, path, selectedPathIndex, followUser]);
   
   // Effect to handle route selection changes
   useEffect(() => {
     // When the selected path index changes, we need to refit the map
-    if (path && path.length > 0) {
+    if (path && path.length > 0 && !followUser) {
       fitMapToRoute();
     }
-  }, [fitMapToRoute, selectedPathIndex]);
+  }, [fitMapToRoute, selectedPathIndex, path, followUser]);
+  
+  // Effect to follow user's location
+  useEffect(() => {
+    if (followUser && userLocation && userLocation.length === 2) {
+      map.setView(userLocation, 18, { animate: true });
+    }
+  }, [map, userLocation, followUser]);
   
   return null;
 }
@@ -160,6 +201,18 @@ function App() {
   // State for closest points to markers (for dotted lines)
   const [startRoadConnection, setStartRoadConnection] = useState(null);
   const [endRoadConnection, setEndRoadConnection] = useState(null);
+  
+  // State for real-time user tracking
+  const [userLocation, setUserLocation] = useState(null);
+  const [userHeading, setUserHeading] = useState(null);
+  const [followUser, setFollowUser] = useState(false);
+  const [watchId, setWatchId] = useState(null);
+  const [useRealLocation, setUseRealLocation] = useState(false);
+  const [prevLocation, setPrevLocation] = useState(null);
+  const movementThreshold = 5; // meters
+  
+  // State for obstacle handling
+  const [obstacleHandled, setObstacleHandled] = useState(false);
   
   // Use custom hooks
   const { 
@@ -257,10 +310,9 @@ function App() {
       }
     }, 500); // Slightly longer delay to ensure obstacles state is updated
     
-    // Don't automatically resume simulation - just find a new route
-    // The user can manually resume the simulation if desired
+    // Keep detection running (do not stop)
     
-  }, [setObstacles, updatePathFromObstacle, alternativePaths, selectedPathIndex, selectPath, findClosestPointOnPathWithIndex]);
+  }, [setObstacles, updatePathFromObstacle, alternativePaths, selectedPathIndex, selectPath]);
   
   // Reference for resuming simulation
   const simulationResumeRef = useRef(null);
@@ -340,89 +392,155 @@ function App() {
     console.log("Alternative paths:", alternativePaths);
   }, [path, alternativePaths]);
   
+  // Function to start real-time GPS tracking
+  const startGPSTracking = useCallback(() => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser");
+      return;
+    }
+    
+    // Request high accuracy location updates
+    const id = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude, heading } = position.coords;
+        setUserLocation([latitude, longitude]);
+        if (heading) setUserHeading(heading);
+        console.log("Current GPS position:", latitude, longitude);
+      },
+      (error) => {
+        console.error("Error getting location:", error);
+        if (error.code === error.PERMISSION_DENIED) {
+          alert("Location permission denied. Please enable location services.");
+        }
+      },
+      { 
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 5000 
+      }
+    );
+    
+    setWatchId(id);
+    setUseRealLocation(true);
+    setFollowUser(true);
+    setObstacleHandled(false);
+    if (!detectionRunning) {
+      startDetection();
+    }
+    return id;
+  }, [detectionRunning, startDetection]);
+  
+  // Function to stop GPS tracking
+  const stopGPSTracking = useCallback(() => {
+    if (watchId) {
+      navigator.geolocation.clearWatch(watchId);
+      setWatchId(null);
+    }
+    setUseRealLocation(false);
+    setFollowUser(false);
+    if (detectionRunning) stopDetection();
+  }, [watchId, detectionRunning, stopDetection]);
+  
+  // Function to toggle follow user mode
+  const toggleFollowUser = useCallback(() => {
+    setFollowUser(prev => !prev);
+  }, []);
+  
+  // Clean up GPS tracking when component unmounts
+  useEffect(() => {
+    return () => {
+      if (watchId) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+    };
+  }, [watchId]);
+  
+  // State for mobile controls visibility
+  const [mobileControlsVisible, setMobileControlsVisible] = useState(true);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  
+  // Function to toggle mobile controls visibility
+  const toggleMobileControls = () => {
+    setMobileControlsVisible(!mobileControlsVisible);
+  };
+  
+  // Effect to handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+      
+      // If window gets larger than mobile breakpoint, ensure controls are visible
+      if (window.innerWidth > 768) {
+        setMobileControlsVisible(true);
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+  
+  // Effect: start/stop object detection based on user movement
+  useEffect(() => {
+    if (!prevLocation || !userLocation) {
+      setPrevLocation(userLocation);
+      return;
+    }
+    const moved = calculateDistance(
+      prevLocation[0], prevLocation[1],
+      userLocation[0], userLocation[1]
+    );
+    if (moved > movementThreshold) {
+      if (!detectionRunning) startDetection();
+    } else {
+      if (detectionRunning) stopDetection();
+    }
+    setPrevLocation(userLocation);
+  }, [userLocation]);
+  
+  // Simplify obstacle effect to run once per detection cycle
+  useEffect(() => {
+    if (!detectionRunning || !userLocation || obstacleHandled) return;
+    // if any obstacle detected, place single marker at GPS and reroute
+    if (objects.some(obj => obj.is_obstacle)) {
+      const marker = {
+        id: 'gps-' + Date.now(),
+        position: userLocation,
+        radius: DEFAULT_OBSTACLE_SIZE_METERS,
+        isDetected: true,
+        source: 'gps-detection'
+      };
+      // replace obstacles with this marker
+      setObstacles([marker]);
+      // reroute from this location
+      cleanupAllOperations();
+      const startPt = { lat: userLocation[0], lng: userLocation[1], name: 'Current Location' };
+      const endPt = { lat: endLat, lng: endLon, name: endLocation };
+      findPath(startPt, endPt);
+      setObstacleHandled(true);
+    }
+  }, [detectionRunning, userLocation, objects, obstacleHandled]);
+  
+  // Add X icon for obstacle marker
+  const XIcon = L.divIcon({
+    className: 'custom-x-icon',
+    html: '<div style="color:red;font-size:24px;transform:translate(-50%,-50%)">×</div>'
+  });
+  
   return (
     <div className={`app ${placingObstacle ? 'placing-obstacle' : ''}`}>
-      <div className="controls">
-        <h2>Navigation Controls</h2>
-        
-        <LocationControls
-          startLocation={startLocation}
-          setStartLocation={setStartLocation}
-          endLocation={endLocation}
-          setEndLocation={setEndLocation}
-          startLat={startLat}
-          setStartLat={setStartLat}
-          startLon={startLon}
-          setStartLon={setStartLon}
-          endLat={endLat}
-          setEndLat={setEndLat}
-          endLon={endLon}
-          setEndLon={setEndLon}
-        />
-        
-        <ControlButtons
-          cleanupAllOperations={cleanupAllOperations}
-          findPath={findPath}
-          startLat={startLat}
-          startLon={startLon}
-          startLocation={startLocation}
-          endLat={endLat}
-          endLon={endLon}
-          endLocation={endLocation}
-          simulateMovement={simulateMovement}
-          detectionRunning={detectionRunning}
-          startDetection={startDetection}
-          stopDetection={stopDetection}
-          placingObstacle={placingObstacle}
-          setPlacingObstacle={setPlacingObstacle}
-          clearObstacles={clearObstacles}
-        />
-        
-        {/* Route selector button and collapsible panel */}
-        {path && path.length > 0 && (
-          <div className="route-selector-container">
-            <button 
-              className={`route-selector-toggle ${showRouteSelector ? 'active' : ''}`}
-              onClick={() => setShowRouteSelector(!showRouteSelector)}
-            >
-              {showRouteSelector ? 'Hide Route Options' : 'Show Route Options'} 
-              {/* {routes.length > 1 && !showRouteSelector && <span className="routes-available-badge">{Math.min(routes.length, 2)}</span>} */}
-            </button>
-            
-            {showRouteSelector && (
-              <RouteSelector
-                routes={routes}
-                selectedPathIndex={selectedPathIndex}
-                selectPath={selectPath}
-                showAllPaths={showAllPaths}
-                toggleShowAllPaths={toggleShowAllPaths}
-              />
-            )}
-          </div>
-        )}
-      </div>
-      
       <MapContainer 
-        center={DEFAULT_CENTER} 
-        zoom={16}  // Adjusted initial zoom level
-        maxZoom={18}
+        center={DEFAULT_CENTER}
+        zoom={16}
+        style={{ height: '100vh', width: '100%' }}
         zoomControl={false}
-        scrollWheelZoom={true}
-        doubleClickZoom={true}
-        attributionControl={true}
-        style={{ height: '100vh', width: '100vw' }}
-        whenCreated={(mapInstance) => {
-          // Make map instance available in the global scope for debugging if needed
-          window.mapInstance = mapInstance;
-        }}
       >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
-        
-        {/* Add zoom control on the right side */}
-        <ZoomControl position="topright" />
+        <ZoomControl position="bottomright" />
         
         {/* Map controller to handle zoom on path change */}
         <MapController 
@@ -433,6 +551,8 @@ function App() {
           startMarker={startMarker} 
           endMarker={endMarker} 
           obstacles={obstacles}
+          userLocation={userLocation}
+          followUser={followUser}
         />
         
         {/* First render all non-selected paths with lower z-index */}
@@ -468,7 +588,6 @@ function App() {
                       <strong>{index === 0 ? "Fastest Route" : "Alternative Route"}</strong>
                       <div>Distance: {formatDistance(routes[index].distance)}</div>
                       <div>Time: {formatTime(routes[index].time)}</div>
-                      {/* <div className="tooltip-hint">Click to select this route</div> */}
                     </div>
                   </Tooltip>
                 )}
@@ -559,36 +678,54 @@ function App() {
           />
         )}
         
-        {/* Waypoints - filter out start and end nodes */}
-        {/* Hiding all waypoint markers as requested
-        {waypoints && waypoints
-          .filter(waypoint => waypoint.label !== 'S' && waypoint.label !== 'E')
-          .map((waypoint, index) => (
-            <Marker 
-              key={`waypoint-${index}`}
-              position={waypoint.position}
-              icon={createWaypointIcon(
-                waypoint.label, 
-                { 
-                  isIntersection: waypoint.isIntersection,
-                  isNode: waypoint.isNode
-                }
-              )}
-            />
-          ))}
-        */}
-        
         {/* Obstacles */}
         {obstacles.map((obstacle, index) => (
-          <ObstacleMarker 
-            key={`obstacle-${index}`}
-            obstacle={obstacle}
-            setObstacles={setObstacles}
-          />
+          <Marker key={obstacle.id} position={obstacle.position} icon={XIcon}>
+            <Tooltip direction="top">Obstacle</Tooltip>
+          </Marker>
         ))}
         
+        {/* User location from real GPS */}
+        {userLocation && userLocation.length === 2 && (
+          <div className="user-location">
+            <Circle 
+              center={userLocation} 
+              radius={4}
+              color="#0078FF"
+              fillColor="#0078FF"
+              fillOpacity={1}
+              weight={2}
+              zIndex={100}
+            />
+            <Circle 
+              center={userLocation} 
+              radius={10}
+              color="#0078FF"
+              fillColor="#0078FF"
+              fillOpacity={0.3}
+              weight={1}
+              zIndex={99}
+            />
+            {userHeading !== null && (
+              <Polyline
+                positions={[
+                  userLocation,
+                  [
+                    userLocation[0] + 0.00005 * Math.cos(userHeading * Math.PI / 180),
+                    userLocation[1] + 0.00005 * Math.sin(userHeading * Math.PI / 180)
+                  ]
+                ]}
+                color="#0078FF"
+                weight={2}
+                opacity={0.8}
+                zIndex={101}
+              />
+            )}
+          </div>
+        )}
+        
         {/* Current location during simulation */}
-        {simulationActive && currentLocation && currentLocation.length === 2 && (
+        {simulationActive && !useRealLocation && currentLocation && currentLocation.length === 2 && (
           <Circle 
             center={currentLocation} 
             radius={5}
@@ -597,6 +734,19 @@ function App() {
             fillOpacity={0.8}
             weight={2}
           />
+        )}
+        
+        {/* Follow User Button */}
+        {userLocation && (
+          <div className="follow-button-container">
+            <button 
+              className={`follow-button ${followUser ? 'active' : ''}`}
+              onClick={toggleFollowUser}
+              title={followUser ? "Stop following" : "Follow my location"}
+            >
+              <FontAwesomeIcon icon={faLocationArrow} />
+            </button>
+          </div>
         )}
         
         {/* Map click handler */}
@@ -608,6 +758,96 @@ function App() {
         />
       </MapContainer>
       
+      {/* Mobile Controls Toggle Button */}
+      <button 
+        className="mobile-controls-toggle"
+        onClick={toggleMobileControls}
+        aria-label={mobileControlsVisible ? "Hide controls" : "Show controls"}
+      >
+        <FontAwesomeIcon icon={mobileControlsVisible ? faTimes : faBars} />
+      </button>
+      
+      {/* Controls Panel */}
+      <div className={`controls ${!mobileControlsVisible && isMobile ? 'mobile-hidden' : ''}`}>
+        <h2>Navigation Controls</h2>
+        
+        <LocationControls
+          startLocation={startLocation}
+          setStartLocation={setStartLocation}
+          endLocation={endLocation}
+          setEndLocation={setEndLocation}
+          startLat={startLat}
+          setStartLat={setStartLat}
+          startLon={startLon}
+          setStartLon={setStartLon}
+          endLat={endLat}
+          setEndLat={setEndLat}
+          endLon={endLon}
+          setEndLon={setEndLon}
+        />
+        
+        <ControlButtons
+          cleanupAllOperations={cleanupAllOperations}
+          findPath={findPath}
+          startLat={startLat}
+          startLon={startLon}
+          startLocation={startLocation}
+          endLat={endLat}
+          endLon={endLon}
+          endLocation={endLocation}
+          simulateMovement={simulateMovement}
+          detectionRunning={detectionRunning}
+          startDetection={startDetection}
+          stopDetection={stopDetection}
+          placingObstacle={placingObstacle}
+          setPlacingObstacle={setPlacingObstacle}
+          clearObstacles={clearObstacles}
+        />
+        
+        {/* GPS tracking buttons */}
+        <div className="gps-tracking-buttons">
+          {!useRealLocation ? (
+            <button 
+              className="full-width-button"
+              onClick={startGPSTracking}
+              style={{ backgroundColor: "#107C10" }}
+            >
+              Use My Real Location
+            </button>
+          ) : (
+            <button 
+              className="full-width-button"
+              onClick={stopGPSTracking}
+              style={{ backgroundColor: "#D83B01" }}
+            >
+              Stop Using My Location
+            </button>
+          )}
+        </div>
+        
+        {/* Route selector button and collapsible panel */}
+        {path && path.length > 0 && (
+          <div className="route-selector-container">
+            <button 
+              className={`route-selector-toggle ${showRouteSelector ? 'active' : ''}`}
+              onClick={() => setShowRouteSelector(!showRouteSelector)}
+            >
+              {showRouteSelector ? 'Hide Route Options' : 'Show Route Options'} 
+            </button>
+            
+            {showRouteSelector && (
+              <RouteSelector
+                routes={routes}
+                selectedPathIndex={selectedPathIndex}
+                selectPath={selectPath}
+                showAllPaths={showAllPaths}
+                toggleShowAllPaths={toggleShowAllPaths}
+              />
+            )}
+          </div>
+        )}
+      </div>
+      
       {/* Video display for object detection */}
       <DetectionDisplay 
         videoRef={videoRef}
@@ -618,7 +858,7 @@ function App() {
       />
       
       {/* Navigation Cards Container */}
-      {simulationActive && (
+      {(simulationActive || useRealLocation) && (
         <div className="navigation-cards-container">
           {/* Current instruction card */}
           {currentInstruction && (

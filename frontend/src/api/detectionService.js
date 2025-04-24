@@ -8,9 +8,12 @@ export const startDetection = async (options = {}) => {
   try {
     // Create request body with RTSP settings
     const requestBody = {
-      use_rtsp: options.useRtsp || true, // Default to RTSP
-      rtsp_url: options.rtspUrl || undefined, // Optional custom RTSP URL
-      camera_id: options.cameraId || 0 // Used if use_rtsp is false
+      // Respect explicit false; default to true if undefined
+      use_rtsp: options.useRtsp !== undefined ? options.useRtsp : true,
+      // Include RTSP URL only if provided
+      rtsp_url: options.rtspUrl,
+      // Camera ID for local camera usage
+      camera_id: options.cameraId || 0
     };
     
     // Start detection service

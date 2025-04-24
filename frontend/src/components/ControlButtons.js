@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { speakInstruction, isSpeechAvailable, getVoicePreference, saveVoicePreference } from '../services/speechService';
 import { generateNavigationInstruction } from '../services/navigationService';
 import { calculateBearing, getDirectionText } from '../utils/navigationUtils';
@@ -23,6 +23,19 @@ const ControlButtons = ({
   // State for navigation options
   const [voiceNavigationEnabled, setVoiceNavigationEnabled] = useState(getVoicePreference());
   const [showNavigationOptions, setShowNavigationOptions] = useState(false);
+  const [isSmallScreen, setIsSmallScreen] = useState(window.innerWidth <= 480);
+  
+  // Function to check screen size for responsive design
+  useEffect(() => {
+    const handleResize = () => {
+      setIsSmallScreen(window.innerWidth <= 480);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
   
   // Function to start navigation with selected options
   const startNavigation = () => {
@@ -45,7 +58,7 @@ const ControlButtons = ({
   return (
     <div className="buttons">
       {/* Find Path and Start Navigation in the same row */}
-      <div className="button-row">
+      <div className={`button-row ${isSmallScreen ? 'small-screen-stack' : ''}`}>
         <button 
           className="half-width-button"
           onClick={() => {
@@ -94,7 +107,7 @@ const ControlButtons = ({
             </label>
           </div>
           
-          <div className="button-row navigation-action-buttons">
+          <div className={`button-row navigation-action-buttons ${isSmallScreen ? 'small-screen-stack' : ''}`}>
             <button 
               onClick={() => setShowNavigationOptions(false)}
               className="half-width-button secondary-button"
@@ -134,7 +147,7 @@ const ControlButtons = ({
       )}
       
       {/* Obstacle controls in the same row */}
-      <div className="button-row">
+      <div className={`button-row ${isSmallScreen ? 'small-screen-stack' : ''}`}>
         <button 
           onClick={() => {
             cleanupAllOperations();

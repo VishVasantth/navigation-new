@@ -4,6 +4,7 @@
 /* Apply Inter font to all elements */
 * {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  box-sizing: border-box;
 }
 
 .app {
@@ -116,6 +117,12 @@
   width: 100%;
 }
 
+.buttons button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 .full-width-button {
   width: 100%;
 }
@@ -138,6 +145,58 @@
   background-color: #D83B01;
 }
 
+/* User location marker styling */
+.user-location {
+  position: relative;
+  z-index: 1000;
+}
+
+.user-heading-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 16px solid #0078FF;
+  z-index: 1001;
+}
+
+/* Follow user button */
+.follow-button-container {
+  position: absolute;
+  bottom: 80px;
+  right: 12px;
+  z-index: 1001;
+}
+
+.follow-button {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background-color: white;
+  color: #666;
+  border: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.follow-button:hover {
+  background-color: #f5f5f5;
+}
+
+.follow-button.active {
+  color: #0078FF;
+  background-color: #f0f7ff;
+}
+
 .video-feed {
   position: absolute;
   bottom: 10px;
@@ -149,6 +208,35 @@
   border-radius: 5px;
   overflow: hidden;
   background-color: #000;
+  transition: all 0.3s ease;
+}
+
+.video-feed-toggle {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  z-index: 1001;
+  width: 30px;
+  height: 30px;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.video-feed.minimized {
+  width: 100px;
+  height: 75px;
+  opacity: 0.7;
+}
+
+.video-feed.minimized:hover {
+  opacity: 1;
 }
 
 .video-feed img {
@@ -169,6 +257,24 @@
   width: 320px;
   max-height: 300px;
   overflow-y: auto;
+  transition: all 0.3s ease;
+}
+
+.detection-status-toggle {
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.detection-status-toggle-icon {
+  font-size: 20px;
+  color: #666;
+}
+
+.detection-status.minimized {
+  max-height: 40px;
+  overflow: hidden;
 }
 
 .detection-status h3 {
@@ -647,3 +753,196 @@
 }
 
 /* END Navigation Card Styles */
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+  .controls {
+    width: 90%;
+    max-width: 300px;
+    max-height: 50vh;
+    padding: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .controls h2 {
+    font-size: 18px;
+    padding-bottom: 8px;
+  }
+
+  .input-group label {
+    font-size: 14px;
+  }
+
+  .coordinates {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .button-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .video-feed {
+    width: 240px;
+    height: 180px;
+    bottom: 5px;
+    right: 5px;
+  }
+
+  .detection-status {
+    width: 240px;
+    bottom: 195px;
+    right: 5px;
+    max-height: 200px;
+  }
+
+  .detection-status h3 {
+    font-size: 14px;
+  }
+
+  .detection-status li {
+    font-size: 11px;
+  }
+
+  .navigation-cards-container {
+    bottom: 10px;
+    left: 10px;
+    max-width: calc(100% - 20px);
+    max-height: 40vh;
+  }
+
+  .navigation-card {
+    padding: 8px;
+    margin-bottom: 5px;
+  }
+
+  .direction-arrow {
+    min-width: 30px;
+    min-height: 30px;
+    width: 30px;
+    height: 30px;
+  }
+
+  .leaflet-control-zoom {
+    margin-right: 10px !important;
+  }
+}
+
+/* Small Mobile Devices */
+@media (max-width: 480px) {
+  .controls {
+    max-width: 90%;
+    top: 5px;
+  }
+
+  .video-feed {
+    width: 180px;
+    height: 135px;
+  }
+
+  .detection-status {
+    width: 180px;
+    bottom: 150px;
+  }
+
+  .path-options-content {
+    width: 90%;
+    max-height: 80vh;
+    padding: 10px;
+  }
+
+  .path-option {
+    padding: 8px;
+  }
+
+  .path-option h3 {
+    font-size: 14px;
+  }
+
+  .path-stats {
+    font-size: 12px;
+  }
+
+  .path-options-actions {
+    padding: 10px;
+  }
+
+  .buttons button {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
+  .leaflet-control-zoom-in,
+  .leaflet-control-zoom-out {
+    width: 30px !important;
+    height: 30px !important;
+    line-height: 30px !important;
+  }
+}
+
+/* Toggle for mobile navigation - hide/show controls */
+.mobile-controls-toggle {
+  display: none;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2000;
+  width: 40px;
+  height: 40px;
+  background: white;
+  border-radius: 4px;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+  border: none;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-controls-toggle svg {
+  width: 24px;
+  height: 24px;
+}
+
+@media (max-width: 768px) {
+  .mobile-controls-toggle {
+    display: flex;
+  }
+
+  .controls.mobile-hidden {
+    display: none;
+  }
+}
+
+/* Landscape orientation optimizations */
+@media (max-height: 500px) and (orientation: landscape) {
+  .controls {
+    max-height: 80vh;
+    width: 250px;
+    top: 5px;
+    left: 5px;
+    transform: none;
+  }
+
+  .video-feed {
+    width: 160px;
+    height: 120px;
+  }
+
+  .detection-status {
+    width: 160px;
+    bottom: 130px;
+    max-height: 150px;
+  }
+
+  .navigation-cards-container {
+    max-width: 40%;
+    max-height: 70vh;
+  }
+}
+
+/* GPS tracking buttons */
+.gps-tracking-buttons {
+  margin: 10px 0;
+}

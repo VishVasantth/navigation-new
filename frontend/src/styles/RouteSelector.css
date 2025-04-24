@@ -204,10 +204,108 @@
 }
 
 .no-alternatives-message {
-  padding: 15px;
-  text-align: center;
+  padding: 12px 15px;
   color: #666;
   font-size: 14px;
-  background-color: #fafafa;
-  border-radius: 0 0 4px 4px;
+  text-align: center;
+  font-style: italic;
+  border-top: 1px solid #f0f0f0;
+}
+
+/* Mobile responsive styles */
+@media (max-width: 768px) {
+  .route-selector-toggle {
+    font-size: 13px;
+    padding: 10px;
+  }
+  
+  .route-selector h3 {
+    font-size: 15px;
+    padding: 10px;
+  }
+  
+  .show-all-button {
+    padding: 10px;
+    font-size: 14px;
+  }
+  
+  .route-item {
+    padding: 10px;
+  }
+  
+  .route-name {
+    font-size: 14px;
+  }
+  
+  .route-stats {
+    font-size: 12px;
+  }
+  
+  .route-color {
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    margin-right: 10px;
+  }
+  
+  .selected .route-color {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .route-selector-toggle {
+    font-size: 12px;
+    padding: 8px;
+  }
+  
+  .route-selector h3 {
+    font-size: 14px;
+    padding: 8px 10px;
+  }
+  
+  .show-all-button {
+    padding: 8px;
+    font-size: 13px;
+  }
+  
+  .route-item {
+    padding: 8px 10px;
+  }
+  
+  .route-name {
+    font-size: 13px;
+    margin-bottom: 3px;
+  }
+  
+  .route-stats {
+    font-size: 11px;
+  }
+  
+  .route-distance {
+    margin-right: 12px;
+  }
+  
+  .route-distance:after {
+    right: -7px;
+  }
+  
+  .route-color {
+    width: 14px;
+    height: 14px;
+    min-width: 14px;
+    margin-right: 8px;
+  }
+  
+  .selected .route-color {
+    width: 14px;
+    height: 14px;
+  }
+  
+  .select-route-button {
+    padding: 3px 8px;
+    font-size: 11px;
+    margin-left: 5px;
+  }
 } 

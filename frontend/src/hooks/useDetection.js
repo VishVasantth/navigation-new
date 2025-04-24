@@ -51,7 +51,7 @@ const useDetection = (setObstacles) => {
   // Function to start detection
   const startDetection = async () => {
     try {
-      // Start detection service
+      // Start detection service using RTSP stream by default
       await apiStartDetection();
       setDetectionRunning(true);
       
@@ -72,8 +72,8 @@ const useDetection = (setObstacles) => {
           const detectedObjects = await fetchDetectedObjects();
           setObjects(detectedObjects);
           
-          // Process obstacles from detected objects
-          processObstaclesFromDetection(detectedObjects);
+          // NOTE: Obstacle placement now handled centrally in App.js, so skip here
+          // processObstaclesFromDetection(detectedObjects);
         } catch (error) {
           console.error('Error fetching video frame:', error);
         }
